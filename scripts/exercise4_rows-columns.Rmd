@@ -1,0 +1,145 @@
+---
+title: "Exercise 4: Data Manipulation with R"
+author: "" #Oliver Nemeth
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  error = TRUE)
+```
+
+## Section 1: Manipulating rows and columns 
+
+Here, we will practice on a new data set. Download the files `surveys.csv` and `species_info.csv` into a subfolder of your raw data folder. You may need to modify the paths below to match your file organization system.
+
+```{r, eval = T, echo = T}
+# Load the tidyverse
+library(tidyverse)
+library(here)
+
+# Read in the data: modify this path as needed
+surveys <- read_csv("C:/Users/olive/Desktop/grad school/datamngmt/scripts/data/surveys.csv")
+
+# How many observations do you have?
+nrow(surveys)
+
+# Take a look at the first few rows
+head(surveys)
+
+# Select only the species and weight columns
+species_weight <- surveys %>%
+  select(species,weight)
+head(species_weight)
+
+# Select the species column and all habitat class columns
+species_habitat <- surveys %>%
+  select(species, habitat_class1, habitat_class2, habitat_class3)
+
+# Filter to only include rows with animals over 100 g
+heavy_animals <- surveys %>%
+  filter(weight > 100)
+nrow(heavy_animals)
+
+# Filter to only include rows where weight was measured
+surveys_complete <- surveys %>%
+  filter(!is.na(weight))
+nrow(surveys_complete)
+
+# Create a new column that converts weight to kilograms
+surveys <- surveys %>%
+  mutate(weight_kg = weight/ 2.205)
+mean(surveys$weight_kg, na.rm = T)
+
+# Convert all character columns to factors
+surveys_fct <- surveys %>%
+  mutate(across(where(is.character), as.factor))
+head(surveys_fct)
+
+unique(surveys_fct$habitat_class1)
+
+# Create a new column that indicates if weight is above average
+avg_weight <- mean(surveys$weight, na.rm = TRUE)
+
+surveys <- surveys %>%
+  mutate(above_avg = weight > avg_weight)
+
+# How many samples have weights above average?
+large_samples <- filter(surveys, above_avg)
+nrow(large_samples)
+
+```
+
+## Section 2: Open-ended practice
+
+```{r}
+## Read in the species info file and name it "species"
+here()
+species <- read_csv("C:/Users/olive/Desktop/grad school/datamngmt/scripts/data/species_info.csv")
+___
+
+## How many species were sampled?
+
+unique(species$species)
+
+#4 species were sampled
+___
+
+## How many of these species were native?
+
+species$status != "introduced"
+
+natives <- filter(species, status == "native")
+nrow(natives)
+___
+
+## In the surveys data, how many gray mice (sp1) were sampled?
+
+mice <- filter(surveys, species == "sp1")
+nrow(mice)
+___
+
+## In the "surveys" data, subset to the row with the largest weight
+
+filter(surveys, weight=="200")
+___
+
+## Which species (by name) is this?
+#River Rat
+___
+
+## In the surveys data, create a new column called species_name
+
+library(dplyr)
+
+surveys <- surveys %>%
+  mutate(species_names = if_else(species == "sp1", "Grey_Mouse",
+                          if_else(species == "sp2", "Field_Vole",
+                          if_else(species == "sp3", "River_Rat",
+                          if_else(species == "sp4", "Swamp_Shrew",NA_character_)))))
+
+         
+## And fill this column with the correct species name
+## (Hint: you will use if_else())
+## We will do this more efficiently soon!
+___
+
+## Check the unique values of this new column. Did it work?
+unique(surveys$species_names)
+
+library(ggplot2)
+
+ggplot(data=mice)+aes(x=sex,y=weight) + geom_boxplot()
+
+```
+
+## Exercise 4 questions
+
+There are many, many more data manipulation functions included in `dplyr` and other R packages that we haven't mentioned yet. You can use some of the same techniques (Google, etc.) we discussed in the [troubleshooting](#troubleshooting) chapter to find the function you need for a given purpose. To practice:
+
+1. What `tidyverse` function would you use to keep only non-duplicated rows of a data frame?
+
+    *distinct()*
+
+2. What `tidyverse` function would you use to subset the first 10 rows of a data frame?
+
+    *slice()*

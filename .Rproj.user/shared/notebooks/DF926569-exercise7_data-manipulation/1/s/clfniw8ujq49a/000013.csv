@@ -1,0 +1,8 @@
+"0","trackrng_and_numofloc <-GPS_per_ind_and_duration %>%
+  group_by(species) %>%
+  summarize(min_duration= min(duration)/24 unit=""hours"", 
+"
+"2","Error: unexpected symbol in:
+""  group_by(species) %>%
+  summarize(min_duration= min(duration)/24 unit""
+"

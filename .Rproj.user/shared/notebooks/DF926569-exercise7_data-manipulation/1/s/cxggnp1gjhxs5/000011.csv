@@ -1,0 +1,8 @@
+"0","move_data <- move_data %>%
+  left_join(bird_data %>% select(active_infection, antibody_detection, species, sex), by= ""ID"")
+"
+"1","[1m[33mError[39m in `left_join()`:[22m
+[38;5;232m[33m![38;5;232m Join columns in `y` must be present in the data.
+[31m✖[38;5;232m Problem with `ID`.[39m
+[90mRun `]8;;x-r-run:rlang::last_trace()rlang::last_trace()]8;;` to see where the error occurred.[39m
+"

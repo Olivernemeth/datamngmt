@@ -1,0 +1,94 @@
+---
+title: "Exercise 2: Data Structures and Importing Data"
+author: "" #fill your name here
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  error = TRUE)
+```
+
+## Section 1: Data entry
+
+We’re going to take a messy data set describe how we would clean it up.
+
+* Download the survey_data_spreadsheet_messy.xlsx data and save it in your course folder.
+* Open up the data in a spreadsheet program.
+* You can see that there are two tabs. Two field assistants conducted the surveys, one in 2013 and one in 2014, and they both kept track of the data in their own way in tabs 2013 and 2014 of the dataset, respectively. Now you’re the person in charge of this project and you want to be able to start analyzing the data.
+* What is wrong with this spreadsheet? What steps do you need to take to clean up the 2013 and 2014 tabs and put them all together in one spreadsheet?
+
+Create a README file that documents all the changes you made to get from the raw to the clean data. **Important!** Make sure you create a new file for the cleaned data, never modify your original (raw) data. 
+
+(This is the "open-ended" section for this exercise.)
+
+## Section 2: Reading data
+
+In this section you will read the survey_data_spreadsheet_clean.xlsx into R and work with it a little. (First, save this spreadsheet in in your folder for clean data):
+
+```{r}
+# install.packages("readxl")
+library(readxl)
+library(tidyverse)
+library(here)
+
+# If you are using a Windows machine, you may need to close the Excel spreadsheet before opening it with R
+# Use double colons :: to indicate the source package. This can be helpful for future users.
+# You can also use double colons to use a function from a package without loading it with library()
+survey_data <- readxl::read_excel(here("data/survey_data_spreadsheet_clean.xlsx"), sheet = 1) 
+
+# Check the column names
+names(survey_data)
+
+# View the first few rows
+head(survey_data)
+
+# Summarize the dataset
+summary(survey_data)
+
+# Get all species 
+species_vect <- pull(survey_data, Species)
+print(unique(species_vect)) #we can nest functions like this to save space
+
+# Get the mean weight of all samples
+weight_vect <- pull(survey_data, Weight)
+mean(weight_vect) 
+#You might get a surprise answer here! Use the help function to find out how to fix this:
+?mean 
+mean(weight_vect, na.rm = TRUE)
+
+#Write a CSV version of this file in your clean data folder
+?write_csv()
+
+write_csv(survey_data, here("data/survey.csv"))
+
+```
+
+### Section 3: OPTIONAL
+
+Try to read in the survey_data_spreadsheet_messy.xlsx and work with it in R. The code chunk below has some space for you to play with this. Is there a way to automate the steps you described in the Readme?
+
+Hints:
+
+* You will need to use the `sheet` and `range` arguments within `read_excel()`
+* Can you end up with seven objects, one for each original table?
+* Some of the other steps to combine and fix data will require skills we haven't gotten to yet, but you are welcome to explore those options.
+
+```{r}
+
+
+```
+
+### Exercise 2 Questions
+
+1. NA appears twice in the species vector. Why is this? Would you change anything in the data spreadsheet to avoid this, or is it not a problem?
+
+    There are two spaces under the species column on the excel spreadsheet that do not have any values filled in.  They have some spaces labled NA and should have filled in those missing values in with NA. Or left al the unkown speceis blank 
+
+2. What values in the spreadsheet are interpreted by R as missing values? How would you account for this in data entry?
+
+  Only the values that do not have anything filled in are interpreted as missing values by R.  I would try to fill in every value during data entry and have a clear and consistent way to mark unknown values.
+
+**Turn in**:
+
+* This knitted document including answers to the questions
+* Your README file

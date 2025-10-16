@@ -1,0 +1,186 @@
+---
+title: "Exercise 6: Dates and Times"
+author: "Oliver Nemeth" 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  error = TRUE)
+```
+
+Install the `move` package. This contains the data for the open-ended practice section.
+
+```{r load packages, include = FALSE}
+install.packages("move")
+library(move)
+library(tidyverse)
+library(here)
+```
+
+## Section 1: Load and parse dates
+
+```{r}
+# Create a tibble of field observations with dates and temperature
+observations <- tibble(
+  observer = c("alex", "jordan", "alex", "kai", "jordan", "kai", "alex"),
+  datetime = c("2023-06-01 08:30", "2023-06-04 15:10", "2023-06-07 10:00",
+               "2023-06-07 18:45", "2023-06-09 07:00", "2023-06-11 20:00", "2023-06-13 09:15"),
+  temperature_C = c(25.4, 26.1, 24.9, 27.0, 25.0, 26.7, 24.5)
+)
+
+# Take a look at the data
+str(observations)
+head(observations)
+
+# Parse datetime
+# Assume it is in UTC
+observations <- observations %>%
+  mutate(datetime = ymd_hm(datetime))
+head(observations$datetime)
+
+# Change the time zone of the datetime column to eastern time
+observations <- observations %>%
+  mutate(datetime = datetime, tz="America/New_York") 
+
+```
+
+## Section 2: Extract date and time components
+
+```{r}
+# Extract date-related components
+observations <- observations %>%
+  mutate(
+    date_only = as_date(datetime),
+    hour = hour(datetime),
+    weekday = wday(datetime, label = TRUE),
+    month = month(datetime, label = TRUE),
+    is_weekend = weekday %in% "Sun"
+  )
+
+# View new columns
+library(dplyr)
+dplyr::select(observations, observer, date_only, hour, weekday, month, is_weekend)
+
+#Select refuses to work normally for me so I had to modify the code
+
+# What proportion of observations are weekends?
+mean(observations$is_weekend)
+
+
+
+___
+
+```
+
+## Section 3: Filter by time
+
+```{r}
+# Filter for morning observations before 12 PM
+morning_obs <- observations %>%
+  filter(hour < 12)
+
+# Filter for observations after 1 PM
+afternoon_obs <- observations %>%
+  filter(hour>13)
+
+```
+
+## Section 4: Time intervals and durations
+
+```{r}
+# Compute time since first observation
+start_time <- min(observations$datetime, na.rm = TRUE)
+observations <- observations %>%
+  mutate(
+    time_since_start_min = as.numeric(difftime(datetime, start_time, units = "mins")),
+    time_since_start_hr = time_since_start_min / 60
+  )
+
+# Identify observations more than 5 days apart
+observations <- observations %>%
+  mutate(
+    days_since_start = time_since_start_hr/24,
+    over_5_days = days_since_start > 5
+  )
+
+```
+
+## Section 5: Open-ended practice
+ 
+The "leroy" dataset in `move` provides spatial data from a fisher (*Martes pennanti*). These location data were collected via a 105g GPS tracking collar (manufactured by E-obs GmbH) and programmed to record the animal’s location every 15 minutes, continuously. The collar was deployed from 10 February 2009 through 04 March 2009 on an adult, resident, male fisher, in New York, USA.
+
+```{r}
+# Take a look at the data
+?leroy
+class(leroy) # Note that this is a new object type! 
+# Convert to a tibble so that dplyr functions work 
+leroy <- as_tibble(leroy) 
+head(leroy)
+names(leroy)
+
+# Clean up dataset: remove all the columns that start with "eobs"
+leroy <- leroy[ , !startsWith(names(leroy), "eobs") ]
+
+___
+
+# What time zone is the "timestamp" column in?
+head(leroy$timestamp)
+#UTC
+___
+
+# How many hours is the "timestamp" from the "study.local.timestamp"?
+head(leroy$timestamp)
+
+
+
+leroy <-leroy %>%
+ mutate(local_difference=timestamp-study.local.timestamp)
+
+    
+___
+
+# What is the range of dates on which data were taken?
+
+leroy <- leroy %>%
+  mutate(
+    date_only = as_date(timestamp))
+
+range(leroy$date_only)
+___
+
+# Are any of the timestamps duplicated?
+
+duplicated_values <- duplicated(leroy$timestamp)
+unique(duplicated_values)
+
+duplicated_values2 <- duplicated(leroy$study.local.timestamp)
+unique(duplicated_values2)
+
+___
+
+# Filter the data to February 12-17 (inclusive). How many data points do you have?
+
+filtered_dates <- leroy %>%
+  filter(date_only>= "2009-02-12" & date_only<= "2009-02-17")
+___
+
+# Create a new column called "dt" with the time lag between locations in minutes
+leroy <- leroy %>%
+  mutate(dt=as.numeric(difftime(timestamp, lag(timestamp), units="mins")))
+___
+
+# What is the range of time lags between locations?
+
+range(leroy$dt, na.rm=TRUE)
+___
+
+# How many time lags are greater than 20 minutes?
+
+twenty <- leroy %>%
+  filter(dt>"20")
+nrow(twenty)
+___
+
+
+```
+

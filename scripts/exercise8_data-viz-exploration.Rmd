@@ -1,0 +1,267 @@
+---
+title: "Exercise 8: Data Visualization for Exploration"
+author: "Oliver Nemeth" #fill your name here
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE)
+```
+
+## Section 1: `palmerpenguins` plots
+
+Here we will use a different data set and again build on skills in this lesson and previous lessons to create exploratory graphics. Here, we will use the `palmerpenguins` dataset, which is designed for just this. Data were collected and made available by Dr. Kristen Gorman and the Palmer Station, Antarctica Long Term Ecological Research Network (LTER).
+
+```{r, echo = T}
+# Load packages
+library(tidyverse)
+ install.packages("palmerpenguins")
+library(palmerpenguins)
+library(here)
+
+# Take a quick look at the penguins data
+glimpse(penguins) #a tidy version of str()
+
+# Create a scatterplot of flipper length vs. body mass
+ggplot(data = penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point() +
+  labs(x = "Flipper Length (mm)", y = "Body Mass (g)")
+
+# Update the above plot to use species as color and sex as shape
+ggplot(data = penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(aes(color=species, shape=sex)) +
+  labs(x = "Flipper Length (mm)", y = "Body Mass (g)")
+
+# Update the above scatter plot to measure flipper length in cm and body mass in kg
+penguins %>%
+  mutate(flipper_length_mm=flipper_length_mm/10,
+         body_mass_g=body_mass_g/1000) %>%
+  ggplot(aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(aes(color = species, shape = sex)) +
+  labs(x = "Flipper Length (cm)", y = "Body Mass (kg)")
+
+# Make a boxplot showing the distribution of body mass for each species, 
+# with boxes colored by species
+ggplot(penguins, aes(x = species, y = body_mass_g, fill = species)) +
+  geom_boxplot() +
+  labs(x = "Species", y = "Body Mass (g)")
+
+# Plot the number of observations per island using a bar chart
+ggplot(penguins, aes(x = island)) +
+  geom_bar() +
+  labs(x = "Island", y = "Count")
+
+# Plot the number of observations per species using a column chart
+
+penguins_n <- penguins %>%
+  group_by(species) %>%
+  summarize(count=n())
+
+ggplot(penguins_n, aes(x = species, y=count)) +
+  geom_col() +
+  labs(x = "Species", y = "Count")
+```
+
+What is the difference between `geom_col()` and `geom_bar()`?
+
+*In this instance geom_col needs y=count while geom_bar will just assume that the y is count if you do not include it, geom_bar does not include a y axis.*
+
+
+```{r}
+# Create a summary of average body mass by species and plot it as points
+avg_mass <- penguins %>%
+  group_by(species) %>%
+  summarize(mean_mass= mean(body_mass_g, na.rm=TRUE) )
+
+ggplot(avg_mass, aes(x = species, y = mean_mass)) +
+  geom_point() +
+  labs(y = "Mean Body Mass (g)")
+
+# Create a scatterplot of bill length vs bill depth, adding some transparency 
+# to handle overlapping points
+ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm, alpha = log10(body_mass_g))) +
+  geom_point()
+
+# Create a line plot of average flipper length by year, per species
+penguin_avg <- penguins %>%
+  group_by(year, species,) %>%
+  summarize(mean_flipper = mean(flipper_length_mm, na.rm = TRUE))
+
+p_flip <- ggplot(penguin_avg, aes(x = year, y = mean_flipper, 
+                        color = species, linetype = species,
+                        group = species)) +
+  geom_line() +
+  labs(y = "Mean Flipper Length (mm)")
+p_flip
+
+# Add points to this plot
+p_flip +
+  geom_point(data = penguin_avg, aes(y = mean_flipper),
+             alpha = 0.5)
+
+# Plot the distribution of body mass by species
+# Using a density plot
+ggplot(penguins, aes(x=body_mass_g,fill=species)) +
+  geom_density()
+```
+
+
+Working more with summary statistics:
+
+```{r}
+# Use ggplot's automatic summaries to create the same plot as above
+# Showing average body mass by species as points
+ggplot(penguins, aes(x = species, y =body_mass_g)) +
+  stat_summary(geom = "point", fun = "mean") +
+  labs(y = "Mean Body Mass (g)")
+
+# Create a plot showing the mean and standard error of body mass
+# By species (color) and island (axis)
+ggplot(penguins, aes(x = island, y = body_mass_g, color =species)) +
+  stat_summary() +
+  labs(x = "Island", y = "Body mass (g)")
+
+# Update this same plot to show the mean and one standard deviation of the mean
+# Hint: there is an example in the help page for stat_summary()
+ggplot(penguins, aes(x = island, y = body_mass_g, color = species)) +
+  stat_summary(fun.data = "mean_sdl", fun.args = list(mult=1)) +
+  labs(x = "Island", y = "Body mass (g)")
+
+# Create a plot showing a smoothed relationship 
+# of bill length as a function of body mass 
+ggplot(penguins, aes(x = bill_length_mm, y = body_mass_g)) +
+  geom_smooth()
+
+# Add scatterplot points to this plot
+ggplot(penguins, aes(x = bill_length_mm, y = body_mass_g)) +
+  geom_smooth() +
+  geom_point()
+```
+
+What does the shaded area produced by `geom_smooth()` represent?
+
+*It is the confidence interval around the trend line*
+
+To practice joining and plotting in space, let's add some information 
+about the islands:
+
+```{r}
+island_info <- data.frame(island_name = c("Torgersen", "Biscoe", "Dream"),
+                          area_sqkm = c(0.126, 478.38, 1.678),
+                          long = c(-64.0833, -65.9164, -64.2333),
+                          lat = c(-64.7667, -65.7474, -64.7333))
+
+# Plot island locations and area as a map
+ggplot(island_info, 
+       aes(x = long, y = lat,
+           size = area_sqkm)) +
+  geom_point()
+
+island_info <-rename(island_info, island=island_name)
+
+# Combine the penguin data with the island information
+penguins_isl <- left_join(island_info, penguins, by = "island")
+
+# Plot number of penguins sampled per island as a map#you might need more than one argument here; one placeholder given
+map_n <- penguins_isl %>%
+  group_by(island, lat, long) %>% 
+  summarize(count=n()) %>%
+  ggplot(aes(x = lat, y = long, size = count)) +
+  geom_point()
+map_n
+
+# Add labels to the plot for each island
+map_n1 <- map_n +
+  geom_text(data = island_info, aes(label = island), 
+            size = 5, hjust = 1, vjust = 1)
+map_n1
+
+
+```
+
+Play with the `hjust` and `vjust` arguments above. What do these do?
+
+*they adjust the labels horizontally and vertically*
+
+Different data used for map_n1, why would it be different if you used penguins or penguins_isl instead of island_info
+
+*you use the island_info data because the island info is more specific and contains less unrelated columns to the map *
+
+```{r}
+# Expand the axis so you can actually see the labels
+map_n2 <- map_n1 +
+  scale_y_continuous(expand = c(0.2,0.2)) +
+  scale_x_continuous(expand = c(0.2,0.2))
+map_n2
+```
+
+## Section 2: Open-ended practice
+
+```{r}
+# Create a column/bar plot of the number of individuals sampled per year
+
+ggplot(penguins_isl, aes(x=year))+geom_bar()
+
+
+# Add colors by island to this plot as a stacked bar/column chart
+ggplot(penguins_isl, aes(x=year, fill=island))+geom_bar()
+
+# Scatterplot of flipper length as a function of body mass, colored by species, 
+# and save it as a named object
+
+flipmass <- ggplot(penguins_isl, aes(x=flipper_length_mm, y=body_mass_g, color=species))+geom_point()
+
+flipmass
+# Add another element: a horizontal line for mean flipper length 
+# and a vertical line for mean body mass
+
+ flipmass2  <- ggplot(penguins_isl, aes(x=flipper_length_mm, y=body_mass_g, color=species))+
+ geom_point()+ geom_hline(yintercept = 4201.754)+geom_vline(xintercept = 200.9152)
+ 
+ flipmass2
+
+ 
+ mean(penguins_isl$flipper_length_mm, na.rm=TRUE)
+ 
+ mean(penguins_isl$body_mass_g, na.rm=TRUE)
+ 
+# Plot the scaling relationship between body mass and bill length
+# Separately per species
+# Include points and a line derived from a *linear model* 
+# (this can be done within ggplot, no need to run a separate model)
+
+ ggplot(penguins_isl, aes(x=body_mass_g, y=bill_length_mm, color=species))+
+   geom_point()+
+   geom_smooth(method="lm", se= FALSE)
+
+# Update the plot to transform both size measurements to a log10 scale
+
+ggplot(penguins_isl, aes(x= body_mass_g, y= bill_length_mm, color=species))+
+   geom_point()+
+   geom_smooth(method="lm", se= FALSE)+
+  scale_x_continuous(trans="log10")+
+   scale_y_continuous(trans="log10")
+
+```
+
+What does this plot show? (i.e., how would you describe the main message(s) of the plot?)
+
+*this plot shows the positive correlation between body mass and bill length across the three speceis of penguin *
+
+```{r}
+# Create one more plot that includes at least one non-axis aesthetic 
+# (e.g., color, size)
+ggplot(penguins_isl, aes(x=body_mass_g, y=bill_length_mm, color=species, size=flipper_length_mm))+
+   geom_point()+
+   geom_smooth(method="lm", se= FALSE)
+```
+
+What are two different types of plots you can use to visualize distributions? 
+
+*histograms and bar plots*
+
+When would you choose to use each one?
+
+*a histogram is good when you have one category you want to count the frequency of and a bar plot is good when you have several categories you want to compare the counts of*
+ 
+

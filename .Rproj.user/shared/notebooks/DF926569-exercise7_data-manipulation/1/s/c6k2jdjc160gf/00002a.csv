@@ -1,0 +1,15 @@
+"0"," species_year_wide <- move_data_joined %>%
+  mutate(year=year(timestamp)) %>%
+  group_by(species,year) %>%
+  summarize(num_birds=n_distinct(ID)) %>%
+   pivot_wider(names_from = year,
+    values_from = num_birds,
+    values_fill = 0) %>%
+   arrange(year)
+"
+"1","[1m[33mError[39m in `arrange()`:[22m
+[38;5;232m[36mℹ[38;5;232m In argument: `..1 = year`.[39m
+[1mCaused by error:[22m
+[38;5;232m[33m![38;5;232m `..1` must be a vector, not a function.[39m
+[90mRun `]8;;x-r-run:rlang::last_trace()rlang::last_trace()]8;;` to see where the error occurred.[39m
+"

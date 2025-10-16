@@ -1,0 +1,14 @@
+"0","summary_stats <- move_data %>%
+  group_by(species, sex) %>%
+  summarise(
+    mean_movement = mean(move_rate, na.rm = TRUE),
+    se_movement = sd(move_rate, na.rm = TRUE) / sqrt(n()),
+  arrange(species))
+"
+"1","[1m[33mError[39m in `summarise()`:[22m
+[38;5;232m[36mℹ[38;5;232m In argument: `arrange(species)`.
+[36mℹ[38;5;232m In group 1: `species = ""Anas acuta""` `sex = ""F""`.[39m
+[1mCaused by error in `UseMethod()`:[22m
+[33m![39m no applicable method for 'arrange' applied to an object of class ""character""
+[90mRun `]8;;x-r-run:rlang::last_trace()rlang::last_trace()]8;;` to see where the error occurred.[39m
+"

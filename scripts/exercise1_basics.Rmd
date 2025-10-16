@@ -1,0 +1,199 @@
+---
+title: 'Exercise 1: Getting Started with R'
+author: ''
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  error = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button at the top of the screen, a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+The first code chunk above sets options so that the output document will include code as well as its output (`echo = T`), and so that the document will still run even if there are errors (`error = T`).
+
+To complete this exercise, fill in the blanks ("___") in the code chunks below. Please knit the document to turn it in. To add notes or text, type in the space outside of the code chunks (like right here!). 
+
+## Section 1: Directories and packages
+
+```{r}
+# install.packages("tidyverse")
+library(tidyverse)
+
+##############  Section 1: Working with Directories and Projects ##############
+# What is your current working directory?
+getwd()
+# Pull up the help page for this function
+?getwd #Note the absence of parentheses when pulling up the help page
+
+# Set your working directory (if needed)
+ setwd("C:/Users/olive/Documents/datamngmt")  # Uncomment and fill in if you want to manually set your working directory
+# If working in an R project, you should not need to use getwd() and setwd()
+
+# Identify files in your working directory
+dir()
+
+# Create a new folder called "data" within this directory (if it doesn't exist)
+dir.create("data") #add folder name "data" here
+# Check that this worked: do you see a new entry with your chosen folder name?
+dir()
+
+# BONUS: list files in one directory above and one directory below this one
+dir("../") #../navigates up
+dir("___") #directory name
+```
+
+## Section 2: Simple vectors
+
+```{r}
+# Assign a value to a variable
+my_name <- ("Oliver")  # your name as a character string
+
+# Print your name
+print(my_name)
+
+# What is the class of the variable you just created?
+class(my_name)
+
+# What else do you want to know about this variable?
+length(my_name)
+nchar(my_name)
+
+# Create a numeric vector
+my_vector <- c(3, 6, 5)
+
+# Get the length of the vector
+length(my_vector)
+
+# Get the mean of the vector
+mean(my_vector)
+
+# Add another number to the numeric vector
+my_vector <- c(my_vector, 7)
+
+# Get the length of the vector
+length(my_vector)
+```
+
+What does the `length` of the `my_name` vector describe? (e.g., number of words, number of letters, length of name, number of names, ...)
+
+> it describes the number of words
+
+## Section 3: Working with data frames
+
+```{r}
+# Create a data frame with two columns: species and count
+my_data <- data.frame(
+  species = c("oak", "pine", "maple"),
+  count = c(7, 8, 10) # Add arbitrary numbers here
+)
+
+# View the structure of the data frame
+str(my_data)
+
+# Access the "species" column
+pull(my_data, species)
+# Alternatively, access the "species" column using base R
+my_data$species
+
+# Access the count of pines
+pines <- filter(my_data, species == "pine")
+str(pines)
+pine_count <- pull(pines,count )
+print(pine_count)
+
+# Or, do this using base R
+pine_row <- which(my_data$species =="pine")
+str(pine_row)
+# base R uses square brackets to access rows and columns:
+# data[1,2] accesses the first row and second column.
+# You can also use row names and column names
+pine_count <- my_data["2", "count"]
+print(pine_count)
+```
+
+Create a new `my_data` data frame with **four** tree species:
+
+```{r}
+
+```
+
+## Section 4: Bigger data frames
+
+```{r}
+# Load some data that is built into R
+
+# What datasets are built into R?
+library(help = "datasets")
+# These can be useful to know about for testing code or plotting functions
+
+# Today, we will use the PlantGrowth dataset
+PlantGrowth
+
+# View the first few rows
+head(PlantGrowth)
+
+# Check the column names
+names(PlantGrowth)
+
+# Summarize the dataset
+summary(PlantGrowth)
+
+# We will get into plotting later, but here's an example:
+boxplot(weight ~ group, data = PlantGrowth, main = "PlantGrowth data",
+        ylab = "Dried weight of plants", col = "lightgray")
+```
+
+In the output of `summary()`, what does the `group` summary tell you?
+
+> it tells you the number of each type of group 
+
+What does this plot suggest about the results of the study?
+
+> trt1 has a lower mean than the control and trt2 has a higher mean than the control
+
+## Section 5: Open-ended practice
+
+```{r}
+# Pick another dataset from the datasets help page
+str(ChickWeight)
+head(ChickWeight)
+summary(ChickWeight)
+class(ChickWeight)
+
+# What type of object is this data set?
+##Numeric
+
+# If it is a data frame or matrix:
+## How many columns does it have?
+##4
+
+## What are the column names?
+##weight, time, chick, diet 
+
+## What is the mean of the first numeric column?
+##Mean of the weight column is 121.8 
+
+# If it is a numeric or integer vector:
+## How many elements does it have?
+___
+## What is the mean value?
+___
+## Add another element to this vector:
+___
+
+```
+
+
+
+

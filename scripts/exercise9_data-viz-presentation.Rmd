@@ -1,0 +1,226 @@
+---
+title: "Exercise 9: Data Visualization for Presentation"
+author: "Oliver Nemeth" #fill your name here
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error= TRUE)
+```
+
+## Section 1: Scales and axes
+
+```{r}
+library(tidyverse)
+library(palmerpenguins)
+library(here)
+
+# Edit this plot to be a six-panel figure
+# With species as rows and islands as columns
+p_length_depth <- ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point() +
+  labs(x = "Bill length (mm)", y = "Bill depth (mm)") +
+  theme_bw() 
+
+p_length_depth <- p_length_depth + 
+  facet_grid(species ~ island)
+p_length_depth
+load(penguins)
+penguins
+# Edit your new plot to include more ticks on the x and y axes
+p_length_depth <- p_length_depth +
+  scale_x_continuous(breaks = seq(from = 35,to = 60, by = 5),
+                     limits= c(35, 60))+
+  scale_y_continuous(breaks = seq(from = 12.5, to = 22.5, by = 2.5),
+                     limits = c(12.5, 22.5))
+                     
+p_length_depth
+
+# Edit your plot to transform to a log-log plot (both X and Y log-transformed)
+p_length_depth <- p_length_depth +
+  scale_x_continuous (breaks = seq(from = 35,to = 60, by = 5),
+                     limits= c(35, 60),
+                     trans = "log10") +
+  scale_y_continuous(breaks = seq(from = 12.5, to = 22.5, by = 2.5),
+                     limits = c(12.5, 22.5),
+                     trans="log10")
+p_length_depth
+```
+
+## Section 2: Width and position
+
+```{r}
+# Here is a boxplot to start from:
+box_sex_bm <- penguins %>%
+  filter(!is.na(sex)) %>%
+  ggplot(aes(x = sex, y = body_mass_g, fill = species)) +
+  geom_boxplot()
+box_sex_bm
+
+# Change the boxplots to be narrower
+penguins %>%
+  filter(!is.na(sex)) %>%
+  ggplot(aes(x = sex, y = body_mass_g, fill = species)) +
+  geom_boxplot(width= .5)
+  
+# Create a stacked barplot of counts by island, colored by species
+ggplot(penguins, aes(x = island, fill = species)) +
+  geom_bar()
+
+# Move the bars to be side-by-side instead of stacked
+barplot_isl <- ggplot(penguins, aes(x = island, fill = species)) +
+  geom_bar(position = position_dodge(), width = .5)
+barplot_isl
+
+# Make all the bars the same width
+barplot_isl <- ggplot(penguins, aes(x = island, fill = species)) +
+  geom_bar(position = position_dodge(width = .5, preserve = "single"), 
+           width = .5) 
+barplot_isl
+
+# Flip the plot sideways (for an "Excel-style" bar chart)
+barplot_90 <- barplot_isl +
+  coord_flip()
+barplot_90
+
+```
+
+## Section 3: Aesthetics (color, etc.) and legends
+
+```{r}
+# Use the viridis color scheme on your barplot from the last chunk 
+# (use whichever orientation you prefer)
+# And change the title of the color legend to "Common name"
+barplot_isl <- barplot_isl +
+  scale_fill_viridis_d("Common name")
+barplot_isl
+
+# Use another color scheme on your barplot
+# Make sure it is colorblind-friendly
+RColorBrewer::display.brewer.all(colorblindFriendly = T)
+
+barplot_isl +
+ scale_fill_brewer("Common name",
+                   palette = "Set2")
+
+# Move the legend to the bottom of the plot
+barplot_isl +
+  theme(legend.position = "bottom")
+```
+
+## Section 4: Themes
+
+```{r}
+# Apply the "black and white" theme 
+# It removes the gray background and adds axis lines
+barplot_isl <- barplot_isl +
+  theme_bw()
+barplot_isl
+
+# Increase the font size for all text
+barplot_isl +
+  theme(text = element_text(size=20))
+  
+# Remove the x-axis label ("island")
+barplot_isl +
+  theme(text = element_text(size=20), axis.title.x = element_blank())
+
+```
+
+## Section 5: Reverse-engineering plots
+
+Reproduce each of these figures using `ggplot2`.
+
+The first is a practice figure using `penguins`.
+
+Some notes:
+
+* The color names used in this figure are "darkorange", "purple", and "cyan4".
+* Pay attention to the y-axis range on the plot
+* There is a built-in theme you can use - you do not need to manually modify axes, etc.
+
+```{r}
+ggplot(penguins, aes(x=body_mass_g, fill=species))+
+  geom_histogram(binwidth = 100, position="identity", alpha = 0.5)+
+  theme_minimal()+
+  scale_fill_manual(values = c("darkorange", "purple", "cyan4"))+
+labs(x = "Body Mass (g)", y = "Frequency") +
+  ggtitle("Penguin body mass")+
+  theme_minimal() 
+```
+
+The second uses angling data from recreational fisheries, associated with the article
+Flink, H., Sundblad, G., Merilä, J., & Tibblin, P. (2024). Recreational fisheries selectively capture and harvest large predators. Fish and Fisheries, 25(5), 793-805.
+
+The data can be found here:
+Flink, Henrik; Sundblad, Göran; Merilä, Juha; Tibblin, Petter (2024). Data and code from: Recreational fisheries selectively capture and harvest large predators [Dataset]. Dryad. https://doi.org/10.5061/dryad.m0cfxppbg
+
+* This plot shows the mean and *two standard errors* of the mean by species, year,
+and fate of the fish (released or harvested)
+* It only plots the top six species in terms of number of data points 
+* The colors are from the "R Color Brewer" package/palette
+
+
+```{r}
+library(RColorBrewer)
+fish_data <- read_csv(here("scripts/data/Angling_data.csv"))
+
+
+unique(fish_data$SpeciesName)
+
+fish_filtered <- fish_data %>%
+  filter(SpeciesName %in% c("common bleak", "common bream", "northern pike", "perch", "pikeperch", "roach"),
+         Fate != "No Answer")
+
+
+summary_data <- fish_filtered %>%
+  group_by(SpeciesName, Year, Fate) %>%
+  summarise(
+    mean_weight = mean(Weight, na.rm = TRUE),
+    se = sd(Weight, na.rm = TRUE) / sqrt(n()),
+    n = n(),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    lower = mean_weight - (2 * se),
+    upper = mean_weight + (2 * se)
+  )
+
+summary_data <- summary_data %>%
+  filter(!is.na(mean_weight))
+
+
+
+ggplot(summary_data, aes(x = Year, y = mean_weight, color = Fate, shape = Fate)) +
+  geom_point(size=3, na.rm = TRUE) +
+  geom_line(size=.6, na.rm = TRUE)+
+  geom_errorbar(aes(ymin = lower, ymax = upper,
+                width = 0)) +
+   scale_color_brewer(palette = "Dark2") +
+  facet_wrap(~SpeciesName) +
+  labs(
+    y = "Weight (g)") +
+  scale_y_log10()+
+  theme_bw(base_family = "serif")+ theme(legend.position = "bottom")
+
+
+
+
+
+
+```
+
+
+
+## Exercise 9 Questions
+
+1. What is the difference between a "scale" and a "theme" in ggplot?
+
+> your answer here
+
+2. When would you use `scale_color_manual()` vs. `scale_color_gradient()`?
+
+> your answer here
+
+
+

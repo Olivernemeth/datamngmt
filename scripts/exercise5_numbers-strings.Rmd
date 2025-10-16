@@ -1,0 +1,214 @@
+---
+title: "Exercise 5: Numbers, Characters, and Factors"
+author: "Oliver Nemeth" 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  error = TRUE)
+```
+
+## Section 1: Create and Inspect tree_data
+
+```{r}
+
+library(tidyverse)
+library(here)
+tree_data <- tibble(
+  id = 1:8,
+  species = c("white oak", "loblolly pine", "white oak", "red maple", 
+              "red maple", "loblolly pine", "white oak", "eastern redbud"),
+  scientific = c("Quercus abla", "Pinus taeda", "Quercus alba", "Acer rubrum", 
+                 "Acer rubrum", "Pinus taeda", "Quercus alba", "Cercis canadensis"),
+  dbh_cm = c(82.2, 45.3, 50.8, 25.5, 85.2, 38.1, 90.0, 58.5),
+  height_m = c(18.1, 27.5, 12.69, 6.27, 16.56, 17.45, 23.5, 8.92),
+  site = c("A", "B", "A", "A", "B", "B", "C", "C")
+)
+
+head(tree_data)
+names(tree_data)
+```
+
+## Section 2: Strings/characters
+
+```{r}
+# Create new columns with uppercase and lowercase species names
+tree_data <- tree_data %>%
+  mutate(
+    species_upper = str_to_upper(species),
+    species_lower = str_to_lower(species),
+   species_title = str_to_title(species)
+  )
+
+# Filter tree_data to pine trees only
+pine_trees <- tree_data %>%
+  filter(species == "loblolly pine")
+
+# Correct a typo: abla to alba
+tree_data <- tree_data %>%
+  mutate(scientific = str_replace(scientific, "Quercus abla", "Quercus alba"))
+
+# Create a new column with the genus name
+# And a new column with the species name
+genus_species <- str_split_fixed(tree_data$scientific, pattern= " ", n=2)
+
+tree_data <- tree_data %>%
+  mutate(genus = genus_species[,1])
+tree_data$genus
+tree_data <- tree_data %>%
+  mutate(species_latin = genus_species[,2])
+tree_data$species_latin
+
+# Create a new column with the common name and latin name
+# E.g., White oak (Quercus alba)
+tree_data <- tree_data %>%
+  mutate(species_name_full = str_c(species_title, scientific, sep=" ", collapse = NULL ))
+tree_data$species_name_full
+
+```
+
+## Section 3: Numeric tree_data
+
+```{r}
+# Add a new column converting DBH to inches
+# And identify large trees (>125 cm)
+
+tree_data <- tree_data %>%
+  mutate(dbh_in = dbh_cm/2.54,
+         large_tree = if_else(dbh_cm> 125, TRUE, FALSE))
+
+# Calculate average tree DBH
+mean_dbh <- mean(tree_data$dbh_cm)
+
+# Create a new tree_data set trees smaller than the mean DBH
+small_trees <- tree_data %>%
+  filter(dbh_cm<59.45)
+
+# How many trees are included in this "small tree" tree_data set?
+nrow(small_trees)
+
+# What is the mean height of trees with a small DBH?
+mean(small_trees$height_m)
+
+```
+
+
+## Section 4: Factors
+
+```{r}
+# Convert site to a factor and view the levels
+tree_data <- tree_data %>%
+  mutate(site =factor(site))
+levels(tree_data$site)
+
+# Create a factor for latin name and reorder by average height
+tree_data <- tree_data %>%
+  mutate(scientific = as.factor(species_latin),
+         scientific = fct_reorder(scientific, height_m))
+levels(tree_data$scientific)
+
+# Do the same thing, but for all species variables (latin and common)
+# This is a challenge question...
+tree_data <- tree_data %>%
+  mutate(across(c(species, scientific), as.factor),
+         across(c(species, scientific),~fct_reorder(.x, height_m)))
+levels(tree_data$scientific)
+levels(tree_data$species)
+
+# Drop unused levels of species after filtering to only site A
+site_a_tree_data <- tree_data %>%
+  filter(site=="A", !is.na(species)) %>%
+  mutate(species = fct_drop(species))
+levels(tree_data$species)
+levels(site_a_tree_data$species)
+
+```
+
+## Section 5: Open-ended practice
+
+Here, we'll use the `surveys.csv` data again.
+
+```{r}
+# Read in the surveys.csv data
+library(readr)
+surveys <- read_csv("data/surveys.csv")
+View(surveys)
+___
+
+# Create a new column indicating whether the sample was in wetland habitat or not
+surveys <- surveys %>%
+  mutate(wetness=ifelse(habitat_class1== "wetland", TRUE, FALSE))
+
+___
+
+# Create a new data frame that excludes data from 2022
+Early_data <- surveys %>%
+  filter(year<2022)
+___
+
+# Convert the sex column to a factor
+surveys <- surveys %>%
+  mutate(sex =factor(sex))
+levels(surveys$sex)
+___
+
+# Covert unknown sex to NA
+surveys <- surveys %>%
+  mutate(sex = str_replace(sex, "U", "NA"))
+
+___
+
+# What are the unique levels of sex?
+unique(surveys$sex)
+___
+
+# Removed any unused levels of sex
+surveys <- surveys %>%
+  filter(sex!="NA") %>%
+  mutate(fct_drop(sex))
+___
+
+# What are the unique levels of sex?
+unique(surveys$sex)
+___
+
+```
+
+## Exercise 5 questions
+
+A collaborator shares some code with you, but they don't use tidyverse. Their code looks like this:
+
+```{r, eval = F}
+surveys <- read.csv(here("tree_data/surveys.csv"))
+surveys$sp_hab <- paste(surveys$species, surveys$habitat)
+sp1_forest <- surveys[surveys$sp_hab == "sp1_forest", ]
+sp1_forest <- sp1_forest[order(sp1_forest$weight), ]
+```
+
+1. What does this each line of this code do?
+    
+    1. Loads in the tree data surveys from the csv file
+    2. Creates a new column that combines species and habitat 
+    3. Creates new object that that only shows data with the combination of both sp1 and forest
+    4. Arranges the data in order by weight 
+    
+2. What is the tidyverse equivalent of this code (can you make it run all at once, connected by pipes)?
+surveys <- read_csv(here("tree_data/surveys.csv")) %>%
+  mutate(sp_hab = str_c(species, habitat, sep = "_")) %>%  
+  filter(sp_hab == "sp1_forest") %>%
+  arrange(weight)
+
+```{r}
+
+
+```
+
+3. Give an example of data you might collect in your field/subfield that would
+be in each of these categories:
+
+* Numeric: Weight
+* Integer: Number of days old
+* Unordered factor: Species
+* Ordered factor: Age class
+* Character: Notes/observations
+

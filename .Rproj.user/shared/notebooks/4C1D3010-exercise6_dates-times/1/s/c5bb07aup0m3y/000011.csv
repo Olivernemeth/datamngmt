@@ -1,0 +1,34 @@
+"0","install.packages(""move"")
+"
+"2","WARNING: Rtools is required to build R packages but is not currently installed. Please download and install the appropriate version of Rtools before proceeding:
+
+https://cran.rstudio.com/bin/windows/Rtools/
+"
+"2","trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.5/geosphere_1.5-20.zip'
+"
+"2","trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.5/sp_2.2-0.zip'
+"
+"2","trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.5/raster_3.6-32.zip'
+"
+"2","trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.5/terra_1.8-60.zip'
+"
+"2","trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.5/move_4.2.6.zip'
+"
+"1","package ‘geosphere’ successfully unpacked and MD5 sums checked
+"
+"1","package ‘sp’ successfully unpacked and MD5 sums checked
+"
+"1","package ‘raster’ successfully unpacked and MD5 sums checked
+"
+"1","package ‘terra’ successfully unpacked and MD5 sums checked
+"
+"1","package ‘move’ successfully unpacked and MD5 sums checked
+"
+"1","
+"
+"1",""
+"1","The downloaded binary packages are in
+	C:\Users\olive\AppData\Local\Temp\RtmpwfLA1B\downloaded_packages"
+"1",""
+"1","
+"

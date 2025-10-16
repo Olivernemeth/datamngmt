@@ -1,0 +1,9 @@
+"","Host Class","Habitat Type","Mean Effect Size","SD of Effect Size","Sample Size"
+"1","birds","terrestrial",-0.141,0.412,159
+"2","fish","aquatic",-0.216,0.362,92
+"3","herpetofauna","aquatic",-0.32,0.304,20
+"4","herpetofauna","terrestrial",0.387,0.646,7
+"5","invertebrates","aquatic",-0.685,0.331,12
+"6","invertebrates","terrestrial",-0.29,0.581,31
+"7","mammals","aquatic",-0.039,0.442,8
+"8","mammals","terrestrial",0.026,0.33,187

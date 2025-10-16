@@ -1,0 +1,461 @@
+---
+title: "Exercise 7: Grouping, joining, and reshaping data"
+author: "Oliver Nemeth" 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+We will use `surveys.csv` and `species_info.csv` again.
+
+## Section 1: Grouping and summarizing
+
+```{r}
+# Load the tidyverse
+install.packages("tidyverse")
+install.packages("here")
+install.packages("dplyr")
+library(tidyverse)
+library(here)
+
+# Read in the data: modify this path as needed
+surveys <- read_csv(here("scripts/data/surveys.csv"))
+
+# Calculate the mean and SD weight by species
+avg_by_species <- surveys %>%
+  group_by(species) %>%
+  summarize(avg_weight = mean(weight, na.rm=T),
+            sd_weight =sd(weight, na.rm=T))
+head(avg_by_species)
+
+# Count the number of observations per combination of habitat types
+counts_by_habitat <- surveys %>%
+  group_by(habitat_class1, habitat_class2, habitat_class3) %>%
+  summarize(count = n())
+counts_by_habitat
+
+# Calculate median and IQR of sampling hour per species
+weight_summary <- surveys %>%
+  group_by(species) %>%
+  summarize(median_hour = median(hour(time), na.rm=T),
+            iqr_hour = IQR(hour(time), na.rm=T))
+
+# Find the top 2 species with the largest average weight
+top2_species <- avg_by_species %>%
+  arrange(avg_by_species)%>%
+slice_head(n=2)
+
+top2_species
+  
+
+# Calculate total biomass (weight * number of individuals) per species
+
+biomass_by_species <- surveys %>%
+  group_by(species) %>%
+  summarize(total_biomass = mean(weight, na.rm=T)*n())
+
+# For each species, calculate the proportion of samples
+# in each primary habitat type (habitat class 1) 
+species_proportions <- surveys %>%
+  group_by(habitat_class1) %>%
+  summarize(n = n()) %>%
+  mutate(proportion = n/sum(n) )
+
+
+# Get the most-observed habitat type by species
+
+most_common_habitat <- surveys %>%
+  pivot_longer(cols = starts_with("habitat_class"), names_to = "class_level", values_to = "habitat") %>%
+  group_by(species, habitat) %>%
+  summarise(freq = n(), .groups = "drop") %>%
+  group_by(species) %>%
+  slice_max(freq, n = 1, with_ties = FALSE) %>%
+  arrange(species)
+  
+# Hint: it is possible to do this in one step, with one function  
+```
+
+
+## Section 2: Binding rows and columns
+
+This section also covers strategies for simulating data, which might be useful!
+
+```{r}
+# Simulate hindfoot lengths for the survey data
+set.seed(1) # Setting the seed makes the random sample come out the same each time
+# Randomly sample from a normal distribution with mean of 15 and SD of 5
+# The number of elements should be the same as the number of surveys
+hindfoot_length_mm <- rnorm(n = nrow(surveys), mean = 15, sd = 5)
+hist(hindfoot_length_mm)
+
+# Add this column to the survey data
+surveys <- surveys %>%
+  mutate(hindfoot_mm = hindfoot_length_mm)
+
+# Add in a new season of data from the surveys_2023 data set
+surveys_2023 <- read_csv("data/surveys_2023.csv")
+surveys_augmented <- bind_rows(surveys, surveys_2023)
+
+# Summarize to make sure binding worked
+## Check that number of rows is as expected
+nrow(surveys_augmented) == (nrow(surveys) + nrow(surveys_2023))
+## Check whether NAs were introduced by counting the number of NAs in each column
+NA_counts <- surveys_augmented %>%
+  summarize(across(everything(), ~sum(is.na(.))))
+pivot_longer(NA_counts, everything()) 
+
+# Make sure names match and redo binding
+names(surveys)
+names(surveys_2023)
+surveys_2023 <- rename(surveys_2023, date=sampling_date)
+surveys_augmented <- bind_rows(surveys, surveys_2023)
+
+```
+
+
+
+## Section 3: Joining datasets
+
+```{r}
+# Read in the species info file
+species_info <- read_csv(here("scripts/data/species_info.csv"))
+
+# Join the two datasets using species as the key
+surveys_joined <- surveys %>%
+  left_join(species_info, by = "species")
+# Check to see if this worked
+unique(surveys_joined$common_name)
+
+# Join the summarized datasets with species info
+avg_by_species <- avg_by_species %>%
+  left_join(species_info)
+
+# Use an inner join
+surveys_inner <- surveys %>%
+  inner_join(species_info, by = "species")
+# Compare row counts between the left and inner joins
+(nrow(surveys_joined) == nrow(surveys_inner))
+
+
+# Semi join: keep only surveys for native species
+native_surveys <- surveys %>%
+  semi_join(species_info %>% filter(status=="native"), by = "species")
+nrow(native_surveys)
+nrow(surveys)
+
+# Anti join: find species never observed in surveys
+unobserved_species <- species_info %>%
+  anti_join(surveys_inner, by = "species")
+
+```
+
+Under what circumstance(s) do you expect an inner join and a left join of the same two datasets to produce data frames with different numbers of rows?
+
+*inner and left join will produce different data frames when there are values that are in the left df that are not in the right *
+
+
+<!-- DAY 1 SECTION BREAK -->
+
+## Section 4: Wide and long form
+
+```{r}
+# Summarize number of samples per species per habitat type 1
+species_habs <- surveys %>%
+  group_by(species, habitat_class1) %>%
+  summarize(n = n())
+
+# Create a table with species as rows and habitat type as columns
+# Where any missing species-habitat combinations are filled with zero
+species_habs_wide <- pivot_wider(species_habs,
+                            names_from = species, habitat_class1,
+                            values_from = n,
+                            values_fill = 0)
+species_habs_wide
+
+# Pivot back to long format
+
+species_habs_long <- pivot_longer(species_habs_wide,
+                                  cols = -habitat_class1,
+                                  names_to = "species",
+                                  values_to = "count")
+head(species_habs_long)
+
+# Create table where each row is a year and 
+# columns are counts per the combination of habitat types 1 and habitat type 2
+# Fill any missing species-habitat combinations with zero !!!STILL NEED TO VISIT!!!
+
+year_plot_counts <- surveys %>%
+  group_by(year, habitat_class1, habitat_class2) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  mutate(habitat_combo = str_c(habitat_class1, habitat_class2, sep = "_")) %>%
+  select(year, habitat_combo, count) %>%
+  pivot_wider(
+    names_from = habitat_combo,
+    values_from = count,
+    values_fill = list(count = 0)
+  )
+year_plot_counts
+
+# Reshape avg_weight and sd_weight to long format
+species_stats_long <- avg_by_species %>%
+  pivot_longer(cols = c(avg_weight, sd_weight),
+               names_to = "statistic",
+               values_to = "value")
+
+# Reformat the "statistic" column so that values are "mean" and "sd"
+# Hint: you could do this with stringr or if_else
+species_stats_long <- species_stats_long %>%
+  mutate(statistic = if_else(statistic == "avg_weight", "mean", statistic))
+species_stats_long <- species_stats_long%>%
+         mutate(statistic = if_else(statistic == "sd_weight", "sd", statistic))
+        
+
+head(species_stats_long)
+```
+
+## Section 5: Open-ended practice
+
+Here, we'll practice with some published data: https://doi.org/10.5066/P97NEY5Y. 
+
+This repository includes three datasets detailing the movement and avian 
+influenza infection status of waterfowl in California:
+
+* individual_data_attributes.csv: Individual-level data (ID, species, infection
+status) for tagged birds
+* local_movement_data.csv: Data from GPS telemetry of these same birds soon
+after tagging and sampling
+* spring_migration_data.csv: Data derived from GPS telemetry of these same birds,
+used to derive the timing of their spring migrations. We will not use this dataset
+in this exercise.
+
+The repository also includes a file called DataRelease.xml, which is the Readme
+file for the repository. It describes the data and defines column headings. You
+can open this file in a browser or text editor (Notepad, TextEdit, etc.), but
+it is in a format that is difficult to read without installing a new program.
+
+Download individual_data_attributes.csv and local_movement_data.csv and place
+them in your raw data folder. You can open them in Excel to explore the data
+structure and column names.
+
+First, explore the data a little and do any necessary cleaning: 
+
+```{r}
+# Read in the individual-level data
+bird_data <- read_csv(here("scripts/data/individual_data_attributes.csv"))
+
+# Read in the movement data
+move_data <- read_csv(here("scripts/data/local_movement_data.csv"))
+
+# Check the column formats and correct as needed (hint: check time columns)
+str(bird_data)
+str(move_data)
+
+bird_data <- bird_data %>%
+  mutate(sampling_date = mdy(sampling_date))
+move_data <- move_data %>%
+  mutate(timestamp = mdy_hm(timestamp))
+
+# Add any other exploration you would like here...
+
+unique(move_data$ID)
+
+```
+
+### Summarizing: 
+
+Create a table with the number of GPS locations per individual
+(Make sure to create a new object that saves this information)
+
+```{r}
+
+move_data <- move_data %>%
+  mutate(long_lat= str_c(longitude, latitude, sep=", "))
+
+
+GPS_per_ind <- move_data %>%
+  group_by(ID) %>%
+  summarize(number_of_GPS_locations=n())
+  
+
+# What is the range of number of locations per bird?
+
+range(GPS_per_ind$number_of_GPS_locations)
+
+# 39-576
+
+```
+
+Calculate the duration of tracking for each bird in days, while also including 
+the number of GPS locations per bird (as above). Make sure to create a new object 
+that saves this information.
+
+```{r}
+
+
+GPS_per_ind_and_duration <- move_data %>%
+  group_by(ID) %>%
+  summarize(number_of_GPS_locations=n(),
+    start_time=min(timestamp),
+    end_time=max(timestamp),
+    duration=difftime(end_time, start_time, units="hours")) 
+
+ 
+  
+
+# What is the range of tracking duration?
+range(GPS_per_ind_and_duration$duration)
+
+#67.51667-288.0 hours
+
+```
+
+Make a contingency table of active infection and antibody detection, i.e., how 
+many individuals are in each combination of categories? This should use the 
+individual data (not movement data). Please include missing values in your 
+summary. You can do this in a few ways, but you should end up with a table that 
+looks something like this (though maybe in a different order or with different 
+column names):
+
+| active_infection | antibody_detection  | Freq |
+|------------------|:-------------------:|-----:|
+| FALSE            | FALSE               | 21   |
+| FALSE            | TRUE                | 42   |
+| FALSE            | NA                  | 77   |
+| TRUE             | FALSE               |  1   |
+| TRUE             | TRUE                |  2   |
+| TRUE             | NA                  |  8   |
+| NA               | FALSE               |  6   |
+| NA               | TRUE                |  8   |
+
+```{r}
+
+contigency_table <- bird_data %>%
+  count(active_infection, antibody_detection)
+
+```
+
+### Joining and summarizing: 
+
+Add active infection status, species, and sex to the movement data.
+
+```{r}
+
+move_data_joined <- move_data %>%
+  left_join(bird_data %>% select(ID, active_infection, antibody_detection, species, sex))
+
+```
+
+What is (1) the number of locations and (2) the range of tracking duration by 
+species? You can do this in a few ways, you should end up with a table that looks 
+like this (hint: you might want to start with the tracking duration object you created
+above):
+
+| species            | min_duration  | max_duration  | n_locs |
+|--------------------|:-------------:|--------------:|-------:|
+| Anas acuta         | 2.813194 days | 12.00000 days |     64 |
+| Anas platyrhynchos | 2.896528 days | 12.00000 days |     28 |
+| Aythya valisineria | 8.750000 days | 11.98819 days |     50 |
+
+
+```{r}
+ GPS_per_ind_and_duration <- GPS_per_ind_and_duration %>%
+left_join(bird_data %>% select(ID, active_infection, antibody_detection, species, sex))
+
+trackrng_and_numofloc <-GPS_per_ind_and_duration %>%
+  group_by(species) %>%
+  summarize(min_duration= min(duration), 
+           max_duration= max(duration),
+           n_locs= sum(number_of_GPS_locations))
+```
+
+
+Did you get a warning message? What does it mean? Does it indicate a problem?
+
+*the only warning message I got was "Error in `summarize()`:
+ℹ In argument: `n_locs = count(number_of_GPS_locations)`.
+ℹ In group 1: `species = "Anas acuta"`." Count was not able to be used on this so I changed it to sum *
+
+The code chunk below walks you through the calculation of movement rates, which
+we will use in the next chunk. 
+
+```{r}
+# Add a movement rate column to the movement data (i.e., distance traveled per hour)
+# For now, we will just use latitude and longitude as your location data (don't worry
+# about the fact that you're caclulating distances in decimal degrees).
+move_data <- move_data %>%
+  group_by(ID) %>%
+  mutate(lag_longitude = lag(longitude), lag_latitude = lag(latitude)) %>%
+  mutate(distance = sqrt((longitude - lag_longitude)^2 + (latitude - lag_latitude)^2))
+
+# Add a time difference column
+move_data <- move_data %>%
+  mutate(dt = difftime(timestamp, lag(timestamp), units = "hours"))
+
+# Calculate movement rate
+move_data <- move_data %>%
+  mutate(move_rate = distance/as.numeric(dt))
+
+```
+
+In the code chunk above, I grouped `move_data` by `ID` before calculating lagged 
+longitude and latitude. What does this achieve?
+
+*This made it so R would manipulate the data frame based on the ID columns and make it so R calculates the movement rate for each individual *
+
+Calculate the mean and standard error (note! not standard deviation) in movement 
+rates by species and sex, ordered by species.
+
+The standard error of a sample is the standard deviation divided by the square
+root of the sample size (check out the knitted HTML for the rendered version
+of the equation below:
+
+$SE = \frac{\sigma}{\sqrt{n}}$
+
+```{r}
+move_data <- move_data %>%
+left_join(bird_data %>% select(ID, sex,species))
+          
+summary_stats <- move_data %>%
+  group_by(species, sex) %>%
+  summarise(
+    mean_movement = mean(move_rate, na.rm = TRUE),
+    se_movement = sd(move_rate, na.rm = TRUE) / sqrt(n()))
+  
+
+```
+
+For which species do you see sex differences in movement rates?
+
+*Anas platyrhynchos is the species that had the largest difference in movement rate between male and female.  All three of them had at least some difference between the sexes. *
+
+
+### Wide and long form:
+
+Create a table that shows the number of birds sampled in each year for each
+species. You will use the individual-level data for this.
+
+Your table should look like this:
+
+|species            |`2015` |`2016` |`2017` |`2018` |`2019`|
+|:------------------|------:|------:|------:|------:|-----:|
+|Anas acuta         |    18 |    10 |     0 |    28 |    14|
+|Anas platyrhynchos |     5 |     0 |     4 |     7 |    12|
+|Aythya valisineria |     0 |     0 |    25 |    26 |     6|
+|Anser albifrons    |     0 |     0 |     0 |    12 |     0|
+
+```{r}
+
+ 
+ species_year_wide <- move_data_joined %>%
+  mutate(year=year(timestamp)) %>%
+  group_by(species,year) %>%
+  summarize(num_birds=n_distinct(ID)) %>%
+   pivot_wider(names_from = year,
+    values_from = num_birds,
+    values_fill = 0) 
+ 
+  
+
+```

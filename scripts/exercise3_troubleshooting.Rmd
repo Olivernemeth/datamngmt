@@ -1,0 +1,183 @@
+---
+title: "Exercise 3: Troubleshooting in R"
+author: "" #fill your name here
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  error = TRUE)
+```
+
+## Section 1: Interpreting error messages
+
+Below are some code snippets that produce errors. For each error below:
+
+1. Describe (in words) the issue creating the error
+2. Edit the code to fix it
+
+```{r, eval = TRUE, echo = TRUE, error = TRUE}
+dat <- data.frame(animals = c("gray squirrel","white-tailed deer","scarlet tanager"),
+                  counts = c(1, 5, 2))
+dat$observer <- c("Claire", "Claire", "Unknown", "Unknown")
+```
+
+Error description: *There are spaces in the animal names, and there are 4 values in the observer column being made but there are only 3 rows of data in the "dat" object. Also the counts were not being added as a column and there was a missing bracket*
+
+Corrected code:
+
+```{r}
+dat <- data.frame(animals = c("gray_squirrel","white-tailed deer","scarlet_tanager")) 
+dat$counts <- c(1, 5, 2)
+dat$observer <- c("Claire", "Claire", "Unknown")
+```
+
+```{r, eval = TRUE, echo = TRUE, error = TRUE}
+sites <- data.frame(long = c(-110.281, -115.831, -115.076),
+                    lat = c(43.891, 44.001, 38.765))
+print(sties)
+```
+
+Error description: *the object is named "sites" but was mispelled when called upon to print as "sties"*
+
+Corrected code:
+
+```{r}
+sites <- data.frame(long = c(-110.281, -115.831, -115.076),
+                    lat = c(43.891, 44.001, 38.765))
+print(sites)
+```
+
+```{r, eval = TRUE, echo = TRUE, error = TRUE}
+more sites <- data.frame(long = c(-120.214, -120.130, -121.001),
+                    lat = c(44.441, 45.011, 40.598))
+```
+
+Error description: *There is a space when naming the data frame*
+
+Corrected code:
+
+```{r}
+more_sites <- data.frame(long = c(-120.214, -120.130, -121.001),
+                    lat = c(44.441, 45.011, 40.598))
+```
+
+```{r, eval = TRUE, echo = TRUE, error = TRUE}
+values <- c(1,2,6,1,6,)
+print(values)
+```
+
+Error description: *There was an extra comma at the end*
+
+Corrected code:
+
+```{r}
+values <- c(1,2,6,1,6)
+print(values)
+```
+
+```{r, eval = TRUE, echo = TRUE, error = TRUE}
+mean(c(1,3,0,10)
+```
+
+Error description: *You must first make an object before you can find the mean of it*
+
+Corrected code:
+
+```{r}
+numbs <-c(1,3,0,10)
+mean(numbs)
+
+```
+
+```{r, eval = TRUE, echo = TRUE, error = TRUE}
+here()
+```
+
+Error description: *The here function was not available because it was never loaded into this script*
+
+Corrected code:
+
+```{r}
+library(here)
+here()
+```
+
+## Section 2: Fixing unexpected results
+
+The following pieces of code give unexpected results. Can you describe the error and fix them?
+
+```{r, eval = TRUE, echo = TRUE, error = TRUE}
+library(dplyr)
+squirrels <- filter(dat, animals == "grey squirrel")
+nrow(squirrels)
+```
+
+Error description: *the column name that it is trying to get is mispelled and has a space in it.*
+
+Corrected code:
+
+```{r}
+squirrels <- filter(dat, animals == "gray_squirrel")
+nrow(squirrels)
+```
+
+
+```{r, eval = TRUE, echo = TRUE, error = TRUE}
+mean(4,6,10)
+```
+
+Error description: *the first thing in the parenthesis will be rad as an object that it is taking the mean from.  So its trying to take the mean of just 4*
+
+Corrected code:
+
+```{r}
+list <-c(4,6,10)
+mean(list)
+```
+
+## Exercise 3 questions
+
+These questions will help you practice interpreting the help documentation provided by R.
+
+1. Look at the help page for the `dim` function.
+    
+    a. What types of objects can you provide into `dim()`?
+         
+         *You can provide a matrix, array, or data frame along with null or numeric vectors*
+    
+    b. When inputting a data frame, what type of object you expect `dim()` to return?
+
+         *dim returns numeric values that show the dimenstions of the dat frame*
+
+    c. When inputting a data frame with two rows, seven columns, and 10 unique values, what values do you expect `dim()` to return?
+         
+          *2 7*
+
+2. Look at the help page for the `readr` function `read_csv()` (hint: if you haven't already loaded `readr`, run `?readr::read_csv`).
+    
+    a. What types of objects should you provide in the `file` argument?
+         
+         *you should provide the path to the csv file ot the literal data*
+    
+    b. What argument would you use to read in a CSV with three blank rows before the header (i.e., where the data starts on row 4 of the CSV)?
+         
+         *skip_empty_rows=TRUE*
+    
+    c. What is the difference between the `read_csv()` and `read_csv2()` functions?
+         
+         *they have different formats between those two functions.  'read_csv2' uses ; as a seperator and , as a decimal point.*
+
+3. If you run the following code, you will get a warning message: `r log10(c(-1,1,10,100))`. 
+
+    a. What does this warning mean? 
+    
+        *the unexpected symbol warning is telling us that there is a space that R can not read.  *
+    
+    b. What does `NaN` represent?
+
+        *it is representing not a number as the output of the function does not produce a real number*
+
+library(tidyverse)
+
+urban_data <- read_csv("data/raw/Murray-Sanchez_urban-wildlife.csv")
