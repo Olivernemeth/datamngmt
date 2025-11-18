@@ -1,0 +1,149 @@
+---
+title: "Excercise 11"
+author: "Oliver Nemeth"
+date: "2025-10-22"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, error=TRUE)
+```
+
+```{r, message=FALSE}
+library(dplyr)
+library(readr)
+library(tidyverse)
+library(knitr)
+library(flextable)
+library(officer)
+library(ggplot2)
+library(kableExtra)
+library(tinytex)
+Angling_data <- read_csv("scripts/data/Angling_data.csv")
+
+
+
+
+
+
+
+
+summ_species <- Angling_data %>%
+  group_by(SpeciesName) %>%
+  summarize(n=n()) %>%
+  arrange(n)
+
+summ_weight <- Angling_data %>%
+  group_by(SpeciesName) %>%
+  summarize(mean= mean(Weight, na.rm=TRUE))
+
+
+ 
+#mean fish weight by year
+mean_weight_by_year <- Angling_data %>%
+  group_by(Year) %>%
+  summarize(mean= mean(Weight, na.rm=TRUE))
+
+#only looking at the top 6 species
+top_6_fish <- Angling_data %>%
+  filter(SpeciesName %in% c("common bleak", "common bream", "northern pike", "perch", "pikeperch", "roach"))
+
+
+#mean wieght of each fish species
+
+mean_weight_by_fish <- top_6_fish %>%
+  group_by(SpeciesName) %>%
+  summarize(mean= mean(Weight, na.rm=TRUE))
+
+#mean weught of fish through the years
+
+mean_weight_by_fish_year <- top_6_fish %>%
+  group_by(SpeciesName, Year) %>%
+  summarize(mean= mean(Weight, na.rm=TRUE),
+            n=n())
+
+```
+
+## Summary
+
+This data set has `r nrow(Angling_data)` total observations. `r nrow(summ_species)` different fish species were sampled in total, including: `r unique(Angling_data$SpeciesName)`. The top 6 species that were sampled include: `r unique(top_6_fish$SpeciesName)` with a total of `r nrow(top_6_fish)` fish sampled across `r nrow(mean_weight_by_year)` years.
+
+## **Table 1**
+
+*Total number of fish sampled across throughout the years. There is a positive relationship between the year and the number of fish sampled.*
+
+```{r}
+summ_year <- Angling_data %>%
+  group_by(Year) %>%
+  summarize(n=n())
+
+summ_year <- summ_year %>% 
+  rename("Number of Fish Sampled"= n)
+
+summ_year %>%
+kable(caption = "Table 1: Total Number of Fish Sampled Per Year") %>%
+kable_styling(full_width = FALSE) %>%
+column_spec(2, extra_css = "text-align: center;")
+```
+
+## **Graph 1**
+
+*This plot shows how the mean weight of each of the top 6 fish species were changing over time. There seems to be no clear relationship within years or between fish species.*
+
+```{r}
+#graph one
+
+ggplot(mean_weight_by_fish_year, aes(x = Year, y = mean)) +
+  geom_point() +
+  facet_wrap(~ SpeciesName) +
+  labs(
+    title = "Mean Weight of the Top 6 Species Over Time",
+    x = "Year",
+    y = "Mean Weight"
+  ) 
+```
+
+## **Graph 2**
+
+*This graph shows how the number of fish sampled changed over the years in each of the top 6 fish species. Similar to the trend of the total fish sampled, there is a trend of increasing fish sampling as the years increase.*
+
+```{r fig.width=8, fig.height=5}
+
+# graph 2
+
+
+ggplot(mean_weight_by_fish_year, aes(x = Year, y=n )) +
+  geom_col() +
+  facet_wrap(~ SpeciesName) +
+  labs(
+    title = "Number of Top 6 Species Sampled Over Time",
+    x = "Year",
+    y = "Number Sampled"
+  ) 
+```
+
+## List of Takeaways:
+
+-   The number of fish being sampled increased over the 9 years of sampling.
+-   This is true for both the total fish species sampled and the top 6 fish species sampled.
+-   While there are fluctuations in weight, there is no clear pattern in relationship to weight over the years or between fish species.
+
+## Final Questions:
+
+-   **What changes (if any) appeared in your code as you toggled back and forth between the Source and Visual editors?**
+
+*The r code itself if pretty similar between the source and visual editors, but the text changes, with the text reflecting any formatting changes like font bold and italics*
+
+-   **Which format (Word, HTML, or PDF) was easiest to read? Which format(s) are you likely to use in the future for what purpose(s)?**
+
+*The word document table did not visually look good, while the graphs stayed in tact. Both the html and pdf documents presented the data in a easy to read way, but I personally liked the aesthetics of the pdf document the most. I enjoy the font and the page layout in pdf vs the website layout in html.*
+
+-   **What are 2-3 other formatting changes would you like to make to the document? Can you figure out how to implement them (some are harder than others)?**
+
+*1) It would be nice to format it so the text doesn't break across the pages and its more aligned to the table/ graph it is referencing.I think adjusting the size of the graphs would eventually fix this problem. 2) I would number the questions instead of bullet them, this could be done by replacing the - with 1.*
+
+-   **Some people write scientific manuscripts and make slide presentations using Markdown. What are two benefits and two drawbacks of this approach?**
+
+*One drawback is the complex nature and learning curve to understanding how to use rmd, it is not the most accessible. Another would be that it is not extremely easy to tweak small things like moving an image or changing the output (took me a long time to figure out vs how easy it is to do in ppt) Two benefits to using rmd would be how it makes your work very reproducible and well documented and it is in a basic enough form where it can be applied in many ways to suit your needs*

@@ -1,0 +1,315 @@
+---
+title: "Exercise 15: Functions, Part 2"
+author: 'Oliver Nemeth'
+output:
+  html_document: default
+---
+
+This exercise focuses on a few skills:
+
+- troubleshooting and error-handling for functions
+- combining functions and loops
+- combining functions with other skills
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(error = TRUE) #Include this setting so that your document will knit even when your functions produce errors
+library(tidyverse)
+library(here)
+```
+
+## Section 1: Troubleshooting functions and handling errors
+
+Below is the outline of a function that will calculate the mean of a vector
+after removing outliers. Outliers are defined as values outside a user-specified 
+quantile. For example, specifying 0.25 as the quantile would remove values below
+the 25th percentile or above the 75th percentile before calculating the mean. Fill
+in the blanks to complete the function, with the default value of quantile set
+to include all observations.
+
+```{r}
+calculate_mean_rmoutliers <- function(x, quantile = 0){
+  # Identify the thresholds for exclusion
+  thresholds <- quantile(x, probs =c(quantile, 1 - quantile))
+  # Filter out values below or above these thresholds
+  x <- x[x >= thresholds[1] & x <= thresholds[2]]
+  # Calculate the mean of the filtered vector
+  result <- mean(x)
+  return(result)
+}
+```
+
+Test the function on a few different types of inputs:
+
+```{r}
+calculate_mean_rmoutliers(c(1,2,3,5,6,8,10)) #should return 5
+calculate_mean_rmoutliers(c(1,2,3,5,6,8,10), quantile = 0.1) #should return 4.8
+calculate_mean_rmoutliers(c(1,2,3,5,6,8,10), quantile = 0.5) #should return NaN
+calculate_mean_rmoutliers(c(1,2,3,5,6,8,10), quantile = 0.9) #should return NaN
+calculate_mean_rmoutliers(c(1,2,3,5,6,8,NA)) #should produce an error
+calculate_mean_rmoutliers(c("1","2","3","5","6","8","10")) #should produce an error
+```
+
+Based on the testing above, describe the conditions under which the function produces
+an error:
+
+> 1. When there is a NA in the string of numbers 
+> 2. When the string is text instead of numbers.
+
+And the condition under which the function returns `NA` or `NaN`:
+
+> 1.It seems like the function is returning NaN when the quantile is above .5
+
+Add a `tryCatch` statement to the function so that it returns an error instead of 
+`NaN` when the `quantile` argument is provided incorrectly.
+
+```{r}
+calculate_mean_rmoutliers <- function(x, quantile = 0){
+  # Check that the quantile argument is appropriate
+  # And return an error if not
+  if(quantile>=.5){
+   tryCatch({stop("Quantile must be below .5")})
+  }
+  # Below here, you should be able to use your function from above
+  # Identify the thresholds for exclusion
+   thresholds <- quantile(x, probs =c(quantile, 1 - quantile))
+  # Filter out values below or above these thresholds
+   x <- x[x >= thresholds[1] & x <= thresholds[2]]
+  # Calculate the mean of the filtered vector
+  result <- mean(x)
+  return(result)
+}
+
+# Test the function
+calculate_mean_rmoutliers(c(1,2,3,5,6,8,10), quantile = 0.9) #should produce an error
+
+```
+
+Add *an additional argument* to the function so that the user can choose to include
+or ignore missing values in the vector. If included, the result should be `NA` 
+(not an error). If excluded, the result should be the mean value with `NA` excluded.
+
+```{r}
+calculate_mean_rmoutliers <- function(x, quantile = 0, na.rm=TRUE){
+  # Remove NAs if requested
+  if(na.rm){
+    x <- x[!is.na(x)] } 
+  else if(any(is.na(x))){
+    return(NA)}
+  # Below here, you should be able to use your function from above
+  # Check that the quantile argument is appropriate
+ if(quantile>=.5){
+   tryCatch({stop("Quantile must be below .5")})
+  }
+  # Identify the thresholds for exclusion
+thresholds <- quantile(x, probs =c(quantile, 1 - quantile))
+  # Filter out values below or above these thresholds
+ x <- x[x >= thresholds[1] & x <= thresholds[2]]
+  # Calculate the mean of the filtered vector
+  result <- mean(x)
+  return(result)
+}
+
+# Test the function
+calculate_mean_rmoutliers(c(1,2,3,5,6,8,10,NA), quantile = 0.1, na.rm = T) #should return 4.8
+calculate_mean_rmoutliers(c(1,2,3,5,6,8,10,NA), quantile = 0.1, na.rm = F) #should return NA
+
+```
+
+Finally, add a step to the function to coerce a non-numeric vector to numeric. This
+should also output a warning if it is doing so:
+
+```{r}
+calculate_mean_rmoutliers <- function(x, quantile = 0, na.rm = TRUE){
+  result <- tryCatch({
+    # Convert to numeric if needed
+    if(!is.numeric(x)){
+      warning("Coercing a non-numeric vector to numeric")
+      x <- as.numeric(x)  }
+    # Below here, you should be able to use your function from above
+    # Remove NAs if requested
+    if(na.rm){
+      x <- x[!is.na(x)]  } 
+    else if(any(is.na(x))){
+      return(NA)}
+    # Check that the quantile argument is appropriate
+    if(quantile >= 0.5){
+      stop("Quantile must be below .5") }
+    # Identify the thresholds for exclusion
+    thresholds <- quantile(x, probs = c(quantile, 1 - quantile))
+    
+    # Filter out values below or above these thresholds
+    x <- x[x >= thresholds[1] & x <= thresholds[2]]
+    
+    # Calculate the mean of the filtered vector
+     mean(x) 
+  })
+  
+  return(result)
+}
+  
+# Test the function
+calculate_mean_rmoutliers(c("1","2","3","5","6","8","10")) #should return 4.8
+
+calculate_mean_rmoutliers(c("1","2","3","5","6","8","10","cats")) #should return 4.8 AND produce a warning
+calculate_mean_rmoutliers(c("I","am","a","vector")) #should return NaN AND produce a warning
+calculate_mean_rmoutliers(c("1","2","3","5","6","8","10","cats"), na.rm = F) #should return NA AND produce a warning
+```
+
+## Section 2: Combining functions with loops
+
+Using a function inside a loop can make your code cleaner than doing all the 
+operations needed inside the loop itself. For example, you might have a set of 
+many vectors that we want to summarize using the function you wrote above. Fill in
+the blanks to complete a loop that does that. Imagine we have a data frame in which
+we sampled the size of 20 individual organisms across 10 years, with each individual 
+as a row and each year as a column ("wide form"). We want to calculate annual means, 
+excluding the top and bottom 10% quantiles, and store these in a *named* vector
+(with year names/numbers).
+
+```{r}
+# Simulate a vector of sizes for each year from a uniform distribution
+# No need to edit anything in this chunk
+set.seed(10)
+df_years <- data.frame(ID = LETTERS[1:20],
+                       year1 = runif(20, min = 1, max = 10),
+                       year2 = runif(20, min = 1.5, max = 11),
+                       year3 = runif(20, min = 1.5, max = 11),
+                       year4 = runif(20, min = 2, max = 11),
+                       year5 = runif(20, min = 2, max = 11),
+                       year6 = runif(20, min = 2, max = 12),
+                       year7 = runif(20, min = 2.2, max = 12),
+                       year8 = runif(20, min = 2.3, max = 12),
+                       year9 = runif(20, min = 2.1, max = 13),
+                       year10 = runif(20, min = 2.4, max = 13))
+glimpse(df_years)
+```
+
+```{r}
+# Initialize a vector to save results
+annual_means <- c()
+# Loop across columns
+for(col in names(df_years) [-1]){
+  # Define the vector (column of interest)
+  x <- df_years[[col]]
+  # Calculate the trimmed mean
+  result <- calculate_mean_rmoutliers(x, quantile=.1)
+  # Name the result
+  names(result) <- col
+  # Save the result to the master vector
+  annual_means <- c(annual_means, result)
+}
+annual_means
+```
+
+Your answer should look like this:
+
+```
+year1    year2    year3    year4    year5    
+4.660905 5.832219 5.781908 6.739060 6.540149
+year6    year7    year8    year9   year10 
+6.371899 7.749183 7.440525 7.803082 6.409457
+```
+
+## Section 3: Combining functions with other skills
+
+Having written a custom function, we could do this same operation in a 
+`tidyverse`-forward way. Using `tidyverse` functions, create a summarized data frame
+that uses your `calculate_mean_rmoutliers` function to create a table that looks like 
+this (hint: you will need to covert the table to long form first):
+
+```
+year mean_summary
+<int>        <dbl>
+    1         4.61
+    2         7.15
+    3         5.05
+    4         5.55
+    5         6.01
+    6         8.02
+    7         6.73
+    8         6.15
+    9         8.39
+   10         7.38
+```
+
+```{r}
+
+
+```
+
+You have also already been writing functions in your `tidyverse` summaries,
+for example, when grouping and summarizing. In the example below, the `~` symbol
+is equivalent to `function(.x)`:
+
+```{r}
+library(palmerpenguins)
+
+# The way we have been writing function so far...
+penguins %>%
+  group_by(island) %>%
+  summarize(across(c(bill_length_mm, bill_depth_mm, flipper_length_mm), 
+                   ~mean(.x, na.rm = T)))
+
+# ...is equivalent to:
+penguins %>%
+  group_by(island) %>%
+  summarize(across(c(bill_length_mm, bill_depth_mm, flipper_length_mm), 
+                   function(column) mean(column, na.rm = T)))
+
+```
+
+So, functions can be incorporated into grouped summaries, either by including the
+function directly in `summarize` or by writing a function to be called by `summarize`.
+
+Using a combination of grouping, summarizing, and custom functions, extract the 
+slope coefficient of a linear model that measures bill length as a function of
+body mass for each species-sex combination in `penguins`. (Some ways to run and
+extract coefficients from linear models are shown below and the steps you should
+take are outlined.)
+
+```{r}
+# Run a linear model with year1 as a function of year2 in the df_years data
+mod1 <- lm(year1 ~ year2, data = df_years)
+# Another way
+mod1 <- lm(df_years$year1 ~ df_years$year2)
+# Look at the model summary
+summary(mod1)
+# Extract the coefficient
+all_coefs <- mod1$coefficients
+all_coefs # Intercept and slop are given
+coef_year2 <- coefs[2] # Subset to just the slope
+
+
+head(df_years)
+# Use one of the two approaches below:
+##### Appraoch 1:
+# Write a function that takes two vectors and runs a linear model, 
+# then extracts the slope
+extract_slope <- function(y, x) {
+  model <- lm(y ~ x)
+  return(model$coefficients[2])
+}
+
+# Use this function within a set of grouping and summarizing functions
+penguins %>%
+  filter(!is.na(sex)) %>%  # Remove NA sex values
+  group_by(species, sex) %>%
+  summarize(coef_mass_length = extract_slope(bill_length_mm, body_mass_g),
+            .groups = 'drop')
+
+##### Approach 2:
+# OR, combine everything within a grouping and summarizing function
+```
+
+Here's my table; does yours match? 
+
+```
+species   sex    coef_mass_length
+<fct>     <fct>             <dbl>
+Adelie    female          0.00128
+Adelie    male            0.00145
+Chinstrap female          0.00300
+Chinstrap male            0.00103
+Gentoo    female          0.00198
+Gentoo    male            0.00340
+```

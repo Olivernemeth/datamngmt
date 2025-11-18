@@ -1,0 +1,271 @@
+---
+title: 'Exercise 12: Data Cleaning'
+author: 'Oliver Nemeth'
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+Because so much of this exercise is review in terms of functions, it is mostly 
+"open-ended". Just make sure you follow the steps given in the comments.
+
+We will use some data that I've worked with in my research, which is a compilation
+of avian influenza virus detections in wild animals. The data are downloaded
+from EMPRES-i (https://empres-i.apps.fao.org/), which is a data product of the UN Food
+and Agriculture Organization. 
+
+The CSV gives you downloaded information for wild animals with avian influenza only.
+The header details the filters used in the search. Each detection has an associated
+Event.ID. The rest of the columns should be fairly self-explanatory, but note that
+this is compiled data, so there are likely to be errors, and that the latitude and
+longitude often correspond to the centroid of an administrative area (e.g., county),
+not to the actual sampling location.
+
+I have added a few errors for you to find - the original data was pretty clean
+(credit to FAO).
+
+## Section 1: Reading in imperfect data
+
+```{r}
+
+library(tidyverse)
+library(dplyr)
+# Read in the CSV, make sure you start with the actual data 
+# (not the metadata about filtering)
+aiv_data <- read_csv("data/aiv_data_empres_20240628.csv",skip=10)
+
+# Explore the warning that you get
+problems(aiv_data)
+
+# What is the new value in the cells causing this problem?
+#there are dates when r is expecting t/f data
+# What column (name) is causing the problem?
+Humans.affected
+# What are the unique values in this column for all rows?
+unique(aiv_data$Humans.affected)
+```
+
+Open the spreadsheet and find these rows. To me, it looks like the date was entered
+in the wrong column: Humans.affected instead of in Report.date..dd.mm.yyyy. We 
+can fix that by reading in the data differently, then reassigning those values:
+
+```{r}
+# Read in all columns as characters
+# Previously, the problematic column was read as logical (TRUE/FALSE)
+aiv_data_chr <- read_csv("data/aiv_data_empres_20240628.csv", skip=10, col_types = cols(.default = col_character()))
+# Replace the Report.date..dd.mm.yyyy. in the original data with Humans.affected
+# in the character data
+ aiv_data_chr$Humans.affected <- aiv_data$Report.date..dd.mm.yyyy.  
+```
+
+Now, we can go back to our regular exploration of the data. Since we have place names, 
+it's a good idea to check for the encoding issue to see if non-Engish characters 
+appear correctly. 
+
+```{r}
+# Look at the unique values of the location name columns to detect any problems
+unique(aiv_data$Region)
+unique(aiv_data$Subregion)
+unique(aiv_data$Country)
+```
+
+
+Those look good to me. Now we can do some reformatting and other cleaning.
+
+```{r}
+# Rename columns to avoid periods in column names and make them shorter as appropriate
+aiv_data <- aiv_data %>%
+  rename_with(~ str_replace_all(.x, "\\.", "_")) %>%
+  rename(Admin= Admin_level_1, Observation_date = Observation_date__dd_mm_yyyy_, 
+         Report_Date= Report_date__dd_mm_yyyy_)
+
+# Count the number of missing values in all columns
+# And convert to long form for easier visualization
+# Hint: you can do this easily with t() or more properly with pivot_longer()
+
+missing_summary <- aiv_data %>%
+  summarise(across(everything(), ~ sum(is.na(.)))) %>%  
+  pivot_longer(cols = everything(),
+               names_to = "column",
+               values_to = "missing_count")
+
+# Remove the two columns where almost all values are missing
+aiv_data <-  aiv_data %>%
+  select(-Humans_affected, -Human_deaths)
+
+```
+
+
+## Section 2: Identifying and fixing data errors
+
+```{r}
+# Replace values like "unidentified", "unknown", not available", etc. 
+# with NA in all character columns
+missing_values <- c("unidentified", "unknown", "not available", "n/a", "")
+
+aiv_data <- aiv_data %>%
+  mutate(across(
+    where(is.character),
+    ~ if_else(str_to_lower(.) %in% missing_values, NA_character_, .)
+  ))
+
+```
+
+You did this above manually, but another way to check or errors in data entry is to 
+cross-check with a verified list of names. The Database of Global Administrative Areas
+(GADM) provides a high-resolution database of country administrative areas, with a goal of all countries, at all levels. We won't deal with spatial data (yet!) but you can get
+the list of country names with the `geodata` package.
+
+```{r}
+# Get the list of country names from the geodata package
+install.packages("geodata")
+country_table <- geodata::country_codes()
+
+# Cross-check country names with GADM
+# i.e., are all country names in aiv_data in country_table?
+# (The answer should be no)
+unique(aiv_data$Country)
+unique(country_table$NAME)
+# Identify mismatched country names
+mismatched_countries <- aiv_data %>%
+  filter(!Country %in% country_table$NAME) %>%
+  distinct(Country)
+
+# Replace mismatched names with GADM names
+# (This will take many lines)
+aiv_data <- aiv_data %>%
+  mutate(Country = recode(Country,
+                          'United States of America'= 'United States',
+                           'U.K. of Great Britain and Northern Ireland'= 'United Kingdom',
+                           'Moldova  Republic of' ='Moldova',
+                          'Taiwan (Province of China)' = 'Taiwan',
+                           'Falkland Islands (Malvinas)' = 'Falkland Islands',
+                           'Republic of Korea'= 'South Korea',
+                           'Hong Kong  SAR' =  'Hong Kong',
+                           'Svalbard and Jan Mayen Islands' = 'Svalbard and Jan Mayen',
+                          'Russian Federation'= 'Russia' ,
+                           'North Macedonia'= 'Macedonia',
+                           'Iran  (Islamic Republic of)'= 'Iran',
+                           'Viet Nam' = 'Vietnam',
+                            'West Bank'= 'Palestine',
+                           "Dem People's Rep of Korea" = 'North Korea'
+                          ))
+
+# Double check that you matched them all
+# Cross-check country names with GADM
+mismatched_countries2 <- aiv_data %>%
+  filter(!Country %in% country_table$NAME) %>%
+  distinct(Country)
+unique(aiv_data$Country)
+# Join the two data sets to add GADM country information to the AIV data
+aiv_data <- aiv_data %>%
+  left_join(country_table, by = c("Country" = "NAME"))
+
+# Check that the join worked
+str(aiv_data)
+```
+
+You should now have a data frame of 12978 rows and 25 columns. Check that this is true.
+
+```{r}
+nrow(aiv_data)
+ncol(aiv_data)
+```
+
+```{r}
+# Summarize the range of values for all numeric columns
+range(aiv_data$Event_ID)
+range(aiv_data$Latitude)
+range(aiv_data$Longitude)
+aiv_data %>%
+  summarise(across(where(is.numeric), 
+                   list(min = min, max = max), 
+                   na.rm = TRUE))
+# Did you find any errors?
+# Remember that the range of latitude and longitude are restricted
+# Latitude should be between -90 and 90
+# Longitude should be between -180 and 180
+# Fix any errors. Best practice would be to do so without hard-coding in row numbers...
+
+
+aiv_data <- aiv_data %>%
+  mutate(
+    Latitude  = if_else(Event_ID == 375678, Longitude, Latitude),
+    Longitude = if_else(Event_ID == 375678, Latitude, Longitude)
+  )
+
+  filter(aiv_data, Latitude > 90)
+
+# Summarize the range of values for all date columns
+aiv_data %>%
+  summarise(
+    Report_Date_min = min(Report_Date, na.rm = TRUE),
+    Report_Date_max = max(Report_Date, na.rm = TRUE),
+    Observation_date_min = min(Observation_date, na.rm = TRUE),
+    Observation_date_max = max(Observation_date, na.rm = TRUE)
+  )
+
+# Fix any errors you identify
+# You can make assumptions about what mistakes were made in data entry
+ filter(aiv_data, Observation_date > "2024-06-24")
+
+ aiv_data <- aiv_data %>%
+  mutate(
+    Report_Date = dmy(Report_Date),
+    Observation_date  = dmy(Observation_date)
+  )
+ 
+ aiv_data <- aiv_data %>%
+  mutate(Observation_date = if_else(Event_ID == 369679, 
+                               update(Observation_date, year = 2023), 
+                               Observation_date))
+
+
+```
+
+Sometimes, data cleaning is also just filtering the data to your desired specifications.
+
+```{r}
+# Filter to only confirmed diagnoses (create a new data frame)
+
+confirmed <- aiv_data %>%
+  filter(Diagnosis_status== "Confirmed")
+
+
+unique(confirmed$Diagnosis_status)
+# What proportion of the original data are in the filtered data?
+
+nrow(confirmed)/nrow(aiv_data)
+
+```
+
+## Exercise 12 Questions
+
+1. What other ways would you check for errors in coordinates (beyond looking)
+at the range of values, as we did here?
+
+> You could try checking for duplicates since it is not always likley to have multiple events at the same exact coordinate.  
+
+2. The Species column in the dataset is **extremely** messy. 
+
+a. What are the problems with this column (list a few)?
+
+```{r}
+head(aiv_data$Species, 20)
+```
+
+> They are described at very different classification levels, some are down to the species, some are genus, family, or order level. Some use scientific names and some use common names.  
+
+b. What are the steps you would take if you wanted to convert this to three columns 
+(common name, scientific name, and family)? Try out these steps and then describe
+where/why you get stuck. What next steps would you take?
+
+```{r}
+species_split <- str_split_fixed(aiv_data$Species, "[:()]", n = 3)
+```
+
+> Some of the values are already in the order of common name, scientific name, and family, for those you can use str_split and split them up. I am not sure how to specifically split them up by common name, scientific name and family so things in () will be family and things after : will be scientific name.  in this way it is just splitting them up by whichever comes first. I thinknthe next steps I would take is learn how to split them into their specific categories and tehn combine all of those back to one df.  
+

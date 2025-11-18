@@ -1,0 +1,335 @@
+---
+title: 'Exercise 13: loops and conditional statements'
+author: 'Oliver Nemeth'
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r load packages}
+library(here)
+library(tidyverse)
+library(stringr)
+library(readr)
+library(dplyr)
+```
+
+## Section 1: `for` loops
+
+We will start with some simple loops. These aren't really useful because they can, 
+all be done more easily with other functions; they're here here to get you started.
+
+```{r}
+# Print the numbers 1 through 10 to the screen
+nums <- c(1,2,3,4,5,6,7,8,9,10)
+for(x in nums){
+  print(x)
+}
+
+# Print the numbers 2 through 20 to the screen
+# using the multiplication of the vector above within the loop
+# (i.e., without creating a new vector)
+for(x in nums){
+  print(x*2)
+}
+
+# Print the numbers 2 through 20 with some text around them
+# e.g., "I have 2 dogs", "I have 4 dogs", etc.
+for(x in nums){
+  print(paste("I have", x*2, "dogs"))
+}
+
+```
+
+Using *indexing*, we can also reference other values in a sequence. Imagine
+that we have a set of values representing a time series, where each value corresponds
+to a measurement in one year. (For example, the first measurement is a tree's height in
+2010, the second its height in 2011, etc.) We can use a loop to refer to multiple 
+years in the time series, relative to one another.
+
+```{r}
+tree_heights <- c(1.0, 1.2, 1.5, 1.8, 2.6, 2.6, 2.7)
+
+# Without a loop, assume we are in year 3. Use indexing (square brackets) and 
+# `stringr` or base R functions to write "The tree is 1.5 m tall this year but was
+# 1.2 m tall last year"
+
+str_c("The tree is ", 
+      tree_heights[3], " m tall this year but was ",
+      tree_heights[2], " m tall last year")
+
+# Now, in a loop, write this sentence for each year for which it makes sense to do so.
+# Make sure it prints to the screen.
+
+for(i in seq_along(tree_heights)){
+  print(paste("The tree is", tree_heights[i], "m tall this year but was", tree_heights[i-1], "m tall last year" ))
+}
+
+
+# What is the equivalent way to do this without a loop?
+
+print(paste("The tree is ", tree_heights[2], "m tall this year but was", tree_heights[1], "m tall last year"))
+print(paste("The tree is ", tree_heights[3], "m tall this year but was", tree_heights[2], "m tall last year"))
+print(paste("The tree is ", tree_heights[4], "m tall this year but was", tree_heights[3], "m tall last year"))
+print(paste("The tree is ", tree_heights[5], "m tall this year but was", tree_heights[4], "m tall last year"))
+print(paste("The tree is ", tree_heights[6], "m tall this year but was", tree_heights[5], "m tall last year"))
+print(paste("The tree is ", tree_heights[7], "m tall this year but was", tree_heights[6], "m tall last year"))
+```
+
+This same logic applies when we need to refer to the previous or next value of a vector, 
+for example to calculate the cumulative sum or product (i.e., the sum or product of 
+values in order, up to that point):
+
+```{r}
+# Calculate the cumulative sum of a vector using a loop
+# i.e., the sum of all values up to that point
+# We'll start by simulating a vector of 10 random values
+set.seed(10)
+vals <- sample(10)
+# Create an object to save your cumulative sums
+cumul <- vals[1]
+# Loop through your values using an index
+for(i in 2:length(vals)){
+  # Hint: you want to add the value in "vals" to 
+  # the *previous* value in "cumul" at each step
+  value_current <- vals[i]
+  value_previous <- cumul[i-1]
+  cumul <- c(cumul, value_previous+value_current)
+}
+
+# Check your results
+cumul
+length(cumul) == length(vals) # Should return TRUE
+```
+
+Check your work: your final value should be 55.
+
+Update the loop above to calculate the cumulative *product*, using the same
+vector of values. Print the cumulative product vector to the screen:
+
+```{r}
+cumul <- vals[1]
+for(i in 2:length(vals)){
+  # Hint: you want to add the value in "vals" to 
+  # the *previous* value in "cumul" at each step
+  value_current <- vals[i]
+  value_previous <- cumul[i-1]
+  cumul <- c(cumul, value_previous*value_current)}
+  
+  cumul
+```
+
+Check your work: your final value should be 3628800.
+
+One common use for loops is to read in a set of files. Here, we can work with paired
+vectors of the same length. Here, you will get the names of all your files, give 
+them a corresponding object name after they are read into R, and then read them in
+with that paired object name.
+
+```{r, message = FALSE, warning = FALSE}
+# Here, I set message = F for this chunk
+# so that your R Markdown document doesn't get filled with messages from read_csv()
+
+# Get the names of all files in your "data/raw" subfolder
+# If you have a different organizational system, choose a folder with at least 
+# two .csv files
+# Insert your directory name
+library(here)
+getwd()
+data_dir <- dir(here("scripts/data"))
+data_dir
+# List all files in this directory
+all_files <- list.files(path = "scripts/data", full.names = TRUE)
+  
+  
+ 
+# Filter to CSVs only (extension .csv)
+data_files <- data_dir[str_ends(data_dir, ".csv")]
+# Now you have a vector of all the files names you will read
+
+# Convert these file names to object names by removing the file ending (.csv)
+new_names <- str_remove(data_files, ".csv")
+# Replace dashes and spaces in object names with underscores
+new_names <- str_replace_all(new_names, "[- ]", "_")
+new_names
+# Make sure that your file names vector and your object names vector are the same length
+length(new_names) == length(data_files)
+
+# Loop through an index
+for(i in seq_along(new_names)){
+  # Read in the data file from this index
+  dat_temp <- read_csv(here("scripts","data", data_files[i]))
+  # Pull out the correct name for the object in R from the names vector
+  name_temp <- new_names[i]
+  # Assign this object to its new name
+  # This is a new function! See below to think through why we do this.
+  assign(name_temp, dat_temp)
+}
+# Check that all files read in correctly
+# List all the objects in the current R environment
+objs_in_envt <- ls()
+# Check that all your new object names are in the environment
+all(new_names %in% objs_in_envt) # Should return TRUE
+```
+
+Above, you used `assign()` for the first time. What would have happened if we 
+instead used the usual notation (`new_name <- object`)?
+
+> It seems that using assign created variable names based on those two vectors, rather than using <- which would have just been able to rename one and not loop.  
+
+## Section 2: `if` statements
+
+```{r}
+# Write an if print statement that will confirm if x is a negative number
+# and outputs text with this information.
+# Test it with several values of x
+x <- -7
+if(x<0){
+  print("This is a negative number ")
+}
+
+
+# Modify the previous if statement to include an else
+# that says if the number is not negative
+# Test it with several values of x
+x <- 2
+if(x < 0){
+  print("This is a negative number")
+} else {
+  print("This is not a negative number")
+}
+
+# Do the equivalent action with an ifelse statement:
+# With a vector of values, return your text outputs from above
+vect <- c(-7,-2,1,3,5)
+if_else(vect<0, "This is a negative number", "This is not a negative number")
+
+# Do the same thing as you did with the ifelse statement, but in a loop
+# i.e., with a vector of values, print the text outputs
+for(x in vect){
+  if(x<0){
+    print("This is a negative number")
+  } else {
+    print("This is not a negative number")
+  }
+}
+
+```
+
+What is the difference between `if` and `ifelse()`?
+
+> Unless using in a loop, it seems if just only operates on one value while ifelse seems to operate on several values in vectors.
+
+## Section 3: `while` loops
+
+Use of a `while` loop is for simulation. Here, we will simulate some data, perform a
+simple analysis (i.e., taking its mean), and then repeat that process. For example,
+let's say we knew that we were sampling a wildlife population with normal distribution of
+weights, with a mean weight of 120 g and a standard deviation in weight of 12 g. If
+we sample 10 individuals in each survey, how many surveys do we need to do before
+we find an individual of at least 150 g? 
+
+To do this, we need to use a *counter*, which is just an index that increases as the
+loop goes on, so it counts the number of iterations until we reach our goal. Here's
+an example of how that works:
+
+```{r}
+# Create a counter
+counter <- 0
+# Create a measurement of the max value of weight found so far
+max_weight <- 0
+# Initiate a while loop that runs until the max_weight is over 150
+set.seed(1291) #set a random seed so that your results are the same as mine
+# (don't set this seed within the loop - then you'll get the same weights each time!)
+while(max_weight<150){
+  # Add 1 to the counter to show that we have done a simulation
+  counter <- counter+1
+  # Simulate 10 weights from a normal distribution
+  weights_survey <- rnorm(10, mean=120, sd=12)
+  # Get the maximum value of these weights
+  max_weight_survey <- max(weights_survey)
+  # Get the maximum value from all simulations so far
+  max_weight <- max(max_weight, max_weight_survey)
+}
+# The loop will end as soon as the max_weight is greater than 150
+# How many trials did this take?
+counter
+```
+
+Check your work: Using the seed given above, the answer should be 6.
+
+Now, modify the loop above, assuming the following criteria:
+
+- Weights are distributed normally with a mean of 100 and a standard deviation of 8
+- We have more personnel so we can sample 15 individuals per survey
+- We want to find an animal whose weight is less than 77 g
+
+```{r}
+# Create a counter
+counter <- 0
+# Create a measurement of the max value of weight found so far
+min_weight <- Inf
+# Initiate a while loop that runs until the max_weight is over 150
+set.seed(1291) #set a random seed so that your results are the same as mine
+# (don't set this seed within the loop - then you'll get the same weights each time!)
+while(min_weight>77){
+  # Add 1 to the counter to show that we have done a simulation
+  counter <- counter+1
+  # Simulate 10 weights from a normal distribution
+  weights_survey <- rnorm(15, mean=100, sd=8)
+  # Get the maximum value of these weights
+  min_weight_survey <- min(weights_survey)
+  # Get the maximum value from all simulations so far
+  min_weight <- min(min_weight, min_weight_survey)
+}
+# The loop will end as soon as the max_weight is greater than 150
+# How many trials did this take?
+counter
+```
+
+Check your work: If you set the seed to 1291, this answer should be 71
+
+To make this exercise even more powerful, we can repeat it many times in a `for` 
+loop, and look at the distribution (or mean) of the number of trials. Use a `for`
+loop to run your example above (minimum weight < 77) *100 times* and plot the 
+distribution of the number of trials ("counter") as a histogram. To make each trial
+different, place `set.seed()` *outside* your `for` loop.
+
+```{r}
+all_counts <- 0 #initialize a vector to save your results
+set.seed(1291) #set a random seed so that your results are the same as mine
+  
+for(i in 1:100){
+ counter <- 0
+  min_weight <- Inf
+  while(min_weight > 77){
+    counter <- counter + 1
+    weights_survey <- rnorm(15, mean = 100, sd = 8)
+    min_weight_survey <- min(weights_survey)
+    min_weight <- min(min_weight, min_weight_survey)
+  }
+  
+  # Initiate your counter for this simulation
+  # Initiate your while loop for this simulation
+  # Run your while loop
+  # The loop will end as soon as the min_weight is less than 77
+  # How many trials did this take?
+  counter
+  # Add this to the master vector for all simulations
+  all_counts <- c(all_counts, counter)
+}
+# What is the mean number of surveys to get an animal of less than 77 g?
+mean(all_counts) #if you set your seed to 1291 outside the for loop, this sould be 33.01
+# What is the median number of surveys to get an animal of less than 77 g?
+median(all_counts) #if you set your seed to 1291 outside the for loop, this sould be 23
+# Plot a histogram of the number of surveys
+hist(all_counts)
+```
+
+If you were to explain this result in words, what would you say?
+
+> The majority of simulations took between 0-50 trials to reach the min_weight to be less than 77. 
+
