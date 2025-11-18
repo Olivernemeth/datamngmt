@@ -1,0 +1,315 @@
+---
+title: "Exercise 16: Lists and Nested Data Frames"
+author: 'Oliver Nemeth'
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE, error=TRUE}
+library(tidyverse)
+library(here)
+#install.packages("cowplot")
+library(cowplot)
+library(purrr)
+```
+
+## Section 1: Creating and working with lists
+
+Create a list named `my_list` containing:
+- A numeric vector `numbers` with values 1, 5, 9.
+- A character string `name` with the value "Alice".
+- A logical value `is_active` set to TRUE.
+- A data frame `my_data` with 2 rows and 2 columns containing values 1 to 4.
+
+```{r}
+my_list <- list(
+  numbers = 1,5,9,
+  name = c("Alice"),
+  is_actice = TRUE,
+  my_data= data.frame(x=1:2, y=3:4))
+
+
+my_list
+str(my_list)
+
+```
+
+Print the `name` element from `my_list`. Access it two different ways.
+
+```{r}
+my_list[4]
+my_list$name
+```
+
+Change the value of `is_active` to FALSE:
+
+```{r}
+my_list$is_actice <- FALSE
+
+my_list
+```
+
+Remove the `numbers` element from `my_list` (and check that this worked):
+
+```{r}
+my_list <-  my_list[-c(1:3)]
+names(my_list)
+```
+
+Often, you will want to create a list as part of a loop (or using the `map()` 
+function). Lists are convenient data structures for storing outputs of various 
+lengths. Think back to the examples of simulating data from the first functions
+exercise, where you simulated animals' weights and took the minimum or maximum 
+value. In a list, you could save all the weights, in case you wanted to go back
+to the "raw" data later. From the previous exercise:
+
+"Here, we will simulate some data, perform a simple analysis (i.e., taking its mean), 
+and then repeat that process. For example, let's say we knew that we were sampling a wildlife population with normal distribution of weights, with a mean weight of 120 g and a standard deviation in weight of 12 g."
+
+Now, we can use a list to save all the weights.
+
+```{r}
+# Initiate an empty list to save the results
+results <- list()
+
+set.seed(19420)
+# Perform 100 simulations
+for(i in 1:100) {
+  # Simulate weights
+  weights_survey <- rnorm(n = 10, mean = 120, sd = 12)
+  # Save these to the results list
+  results[[i]] <- weights_survey
+}
+
+# Check that this worked
+length(results) # Should be 100
+
+str(results)
+
+# Check the length of the vector in each list element
+all_lengths <- map_int(results, length)
+unique(all_lengths) # All of them should be 10
+
+```
+
+We could modify this; for example, we might say that on any sampling occasion,
+we randomly sample between 2 and 18 individuals. Modify the loop and list above to do
+so.
+
+```{r}
+# Initiate an empty list to save the results
+results <- list()
+
+set.seed(19420)
+# Perform 100 simulations
+for(i in 1:100){
+  # Pick sample size
+  sample_size <- sample(2:18,1)
+  # Simulate weights
+  weights_survey <- rnorm(n = sample_size, mean = 120, sd = 12)
+  # Save these to the results list
+  results[[i]] <- weights_survey
+}
+
+# Check that this worked
+length(results) # Should be 100
+
+# Check the length of the vector in each list element
+all_lengths <- map_int(results, length)
+unique(all_lengths) # Should contain all (or most) numbers between 5 and 15
+```
+
+Using these saved results, calculate the maximum weight per simulation using a loop
+and save these results to a vector called `max_weight`. Make a histogram of `max_weight`.
+
+```{r}
+
+str(results[1:3])
+
+max_weight <- numeric(length(results))
+for(i in 1:length(results)){
+  max_weight[i] <- max(results[[i]])
+}
+# Make a histogram
+ hist(max_weight)
+```
+
+Now, do the same thing using a `map()` function.
+
+```{r}
+max_weight <-map_dbl(results,max)
+# Make a histogram; this should look exactly the same as above
+hist(max_weight)
+```
+
+Finally, we will plot the relationship between sample size and maximum weight. First,
+create a vector `n_samples` that calculates the sample size in each simulation. Then,
+create a scatterplot of the relationship.
+
+```{r}
+n_samples <- map_int(results, length)
+# Plot of max weight vs. sample size
+scatter.smooth(n_samples, max_weight)
+```
+
+Do you see a relationship between sample size and maximum weight? Why do you think
+this relationship does or does not show up?
+
+> Yes I see a slight positive relationship between sample size and max weight. It would make sense that the larger sample size could incude a wider range of weights that could increase the overall distribution of max weight more so than simulations with smaller sample sizes. 
+
+## Section 2: Nested data frames
+
+Read in the waterfowl movement data we have used in the past. These are the files
+called `individual_data_attributes.csv` and `local_movement_data.csv`. These two
+data sets are related to one another in a nested way.
+
+```{r}
+library(readr)
+library(here)
+library(dplyr)
+bird_data <- read_csv(here("scripts/data/individual_data_attributes.csv"))
+# Depending on the version of bird data you have, you might have duplicated individual records
+# Remove these:
+bird_data <- distinct(bird_data, ID, .keep_all = T)
+move_data <- read_csv(here("scripts/data/local_movement_data.csv"))
+```
+
+What does the `distinct` function above do? What about the `.keep_all` argument? 
+
+> Distinct is only showing rows with ID values that are not repeated again in the data frame. .keep_all=T is saying to keep all the variables in bird_data so all of the other colums stay with the distinct rows in the output. 
+
+Previously, we joined the two data sets. This time, we'll nest the movement data
+(which has many locations per individual), then join it with the individual data.
+
+```{r}
+library(tidyr)
+# Nest the movement data by individual
+move_data_nest <- nest(move_data, data = -ID)
+
+# Join the movement and individual data
+move_data_nest <- left_join(move_data_nest, bird_data, by = "ID")
+```
+
+The original use of this data set was to calculate *daily* movement metrics
+for each bird. To do so, first create a column with the calendar date in the full
+(non-nested) movement data, then nest by individual and date.
+
+```{r}
+library(lubridate)
+head(move_data)
+move_data_daily <- move_data %>%
+  mutate(timestamp = mdy_hm(timestamp),
+         date = as.Date(timestamp)) %>%
+  nest(telem = c(longitude, latitude, timestamp))
+head(move_data_daily)
+```
+
+Before we perform operations on these data, join them back with the individual-
+level data (this time, repeat the individual-level data across rows).
+
+```{r}
+move_data_daily <- left_join(move_data_daily,bird_data, by = "ID")
+names(move_data_daily)
+```
+
+## Section 3: Applying functions to nested data frames
+
+First, use `map` functions to calculate median location (median longitude and 
+median latitude) per bird per day, as well as the daily number of GPS locations.
+
+```{r}
+move_data_daily <- move_data_daily %>%
+  mutate(median_long = map_dbl(telem, ~ median(.x$longitude, na.rm = TRUE)),
+         median_lat = map_dbl(telem, ~ median(.x$latitude, na.rm = TRUE)),
+         n_locs = map_dbl(telem, ~ nrow(.x)))
+        
+```
+
+Plot a histogram of the number of locations per day, then use these data to chose
+what you think is a reasonable cutoff for inclusion. Filter the data to this cutoff 
+(i.e., only include days with at least X number of GPS locations).
+
+```{r}
+# Histogram of number of daily locations
+library(ggplot2)
+ggplot(move_data_daily, aes(x=n_locs))+geom_histogram()
+
+# Filter to number of locations based on threshold of X
+move_data_filt <- move_data_daily %>%
+  filter(n_locs<50)
+```
+
+Now, create a plot of the median location per bird-day, colored by species. (You
+can make this pretty and edit colors/themes/axis labels, but don't have to.)
+
+```{r}
+head(move_data_filt)
+ggplot(move_data_filt, aes(x=median_long, y=median_lat, color= species))+geom_point()
+```
+
+For the next step, filter to mallards (Anas platyrhynchos) only, just to save
+memory on your computer.
+
+```{r}
+move_data_filt <- move_data_filt %>%
+  filter(species=="Anas platyrhynchos")
+```
+
+We can also use nested data frames to create plots for *each bird*. For each bird-day,
+create a scatterplot with lines connecting consecutive points (check out `geom_path()`),
+and *save this in a new column in the data frame*.
+
+```{r}
+move_data_filt <- move_data_filt %>%
+  mutate(ggp = map(telem, ~
+                     ggplot(.x, aes(x = longitude, y = latitude))+geom_path()))
+
+names(move_data_filt)
+
+```
+
+```{r}
+# Display the first plot
+move_data_filt$ggp[[1]]
+
+# Create a four-panel figure with the first four plots
+cowplot::plot_grid(plotlist = move_data_filt$ggp[1:4])
+```
+
+Sometimes, you also want to call up another column in the data frame. For example,
+it would be nice if these plots had a title that told me which birds they were!
+For that, I can use the `map2` function, which takes two column names (or lists)
+instead of one. For example:
+
+```{r}
+# Divide corresponding elements of list1 and list2
+list1 <- list(1, 2, 3)
+list2 <- list(4, 5, 6)
+map2(.x = list1, .y = list2, ~.x/.y)
+map2(list1, list2, ~.x/.y)
+
+# Use map2 to check that all timestamps in `telem` are on the same day as `date`
+# Here, we use map2_lgl because this can return a logical vector
+move_data_filt <- move_data_filt %>%
+  mutate(timestamp_check = map2_lgl(date, telem, ~all(as_date(.y$timestamp) == .x)))
+all(move_data_filt$timestamp_check) #yes, they all are!
+```
+
+Using `map2`, modify your ggplots above to include the `ID` column as a title
+for each plot.
+
+```{r}
+# Update the ggplot with a title
+
+move_data_filt2 <- move_data_filt %>%
+           mutate(ggp = map2(telem, ID, ~
+                     ggplot(.x, aes(x = longitude, y = latitude))+geom_path()+ggtitle(.y)))
+
+
+# Display the first plot
+
+move_data_filt2$ggp[[1]]
+
+# Create a four-panel figure with the first four plots
+cowplot::plot_grid(plotlist = move_data_filt2$ggp[1:4])
+```

@@ -1,0 +1,8 @@
+\*.jpg  
+\*.docx  
+figures/
+\*.Rhistory   
+/.Rproj.user/  
+.Rproj.user
+*.html
+data/

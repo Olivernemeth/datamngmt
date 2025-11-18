@@ -1,0 +1,244 @@
+---
+title: "Exercise 14: Functions"
+author: 'Oliver Nemeth'
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE, error=TRUE}
+library(tidyverse)
+library(here)
+library(roxygen2)
+```
+
+## Section 1: Writing and using simple functions
+
+We'll use the `beavers` dataset built into R, which "describes a small part of a 
+study of the long-term temperature dynamics of beaver *Castor canadensis* in 
+north-central Wisconsin. Body temperature was measured by telemetry every 10 minutes 
+for four females." This dataset includes two data frames called `beaver1` and `beaver2`.
+The columns provided are:
+
+- **day**: day of observation (day of year in 1990)
+- **time**: time of day of observation (hour and minute without colon)
+- **temp**: body temperature in Celcius
+- **activ**: was the beaver active?
+
+```{r}
+# Use the `beavers` dataset built into R
+# ?beavers
+
+# View the first few rows
+head(beaver1)
+head(beaver2)
+
+# Check column names and structure
+glimpse(beaver1)
+glimpse(beaver2)
+
+```
+
+Write a simple function that converts temperature from Celcius to Fahrenheit.
+
+```{r}
+# Define the function
+temp_to_f <- function(temp_c) {
+  (temp_c*1.8)+32
+}
+
+# Test it
+temp_to_f(0)
+temp_to_f(100)
+
+# Create a new column in each beaver data frame that measures temperature in F
+# using your function
+beaver1 <- beaver1 %>%
+  mutate(temp_f = temp_to_f(temp))
+beaver2 <- beaver2 %>%
+  mutate(temp_f = temp_to_f(temp))
+head(beaver1) # You should see a new column called temp_f
+names(beaver2) # You should see a new column called temp_f
+```
+
+This function is not all that useful, but it allows you to do in one step what 
+would otherwise require multiple steps (i.e., a single function instead of 
+multiplying *and* adding).
+
+## Section 2: Writing multi-step functions
+
+When writing a new function, it is usually helpful to start by writing code that 
+works outside the function, then making that into a function. Let's walk through 
+that.
+
+First, summarize mean and standard deviation of body temperature (in C) as well
+as the number of observations by hour of day in the `beaver1` data:
+
+```{r}
+summ1 <- beaver1 %>%
+  mutate(temp= (temp_f-32)/1.8,
+         hour= time %/% 100) %>%
+  group_by(hour) %>%
+  summarize(mean_temp = mean(temp),
+            sd_temp = sd(temp),
+            n_obs= n())
+            
+```
+
+Now, use this code to write a function that can take either data set as its input
+(assume that column names and formatting do not change):
+
+```{r}
+hourly_summ <- function(dat){
+  dat %>%
+   mutate(temp= (temp_f-32)/1.8,
+         hour= time %/% 100) %>%
+  group_by(hour) %>%
+  summarize(mean_temp = mean(temp),
+            sd_temp = sd(temp),
+            n_obs= n())
+}
+```
+
+And test this function on both the `beaver1` and `beaver2` datasets.
+
+```{r}
+hourly_summ(beaver1)
+hourly_summ(beaver2)
+```
+
+You can see more clearly here how a function can save you space (for example, you
+might have wanted to repeat this over ten data sets) and make it more reproducible
+(you are sure you do exactly the same thing each time).
+
+## Section 3: Writing functions to produce plots
+
+Using functions to create ggplots can also help, especially with data exploration.
+
+Modify your function above to plot a line plot of mean body temperature by hour.
+Add a title and meaningful X and Y labels to the plot.
+
+```{r}
+hourly_plot <- function(dat){
+  summ <-  dat %>%
+   mutate(temp= (temp_f-32)/1.8,
+         hour= time %/% 100) %>%
+  group_by(hour) %>%
+  summarize(mean_temp = mean(temp),
+            sd_temp = sd(temp),
+            n_obs= n())
+  summ_plot <- ggplot(summ, aes(x=mean_temp, y=hour)) +
+    geom_line() +
+    labs(x= "Mean Beaver Body Temperature",
+         y= "Hour of Day)")
+  print(summ_plot)
+  return(summ)
+}
+hourly_plot(beaver1)
+hourly_plot(beaver2)
+```
+
+Functions can also be useful when you want to be able to modify a few elements
+of a process or plot, but keep the others the same. Modify your function above
+to create a plot where you can provide the title as a function argument, then
+use the function to create different titles for each data set.
+
+```{r}
+hourly_plot <- function(dat, plot_title = "x" ){
+ summ <-  dat %>%
+   mutate(temp= (temp_f-32)/1.8,
+         hour= time %/% 100) %>%
+  group_by(hour) %>%
+  summarize(mean_temp = mean(temp),
+            sd_temp = sd(temp),
+            n_obs= n())
+  summ_plot <- ggplot(summ, aes(x=mean_temp, y=hour)) +
+    geom_line() +
+    labs(x= "Mean Beaver Body Temperature",
+         y= "Hour of Day)",
+         title=plot_title)
+  print(summ_plot)
+  return(summ)
+}
+hourly_plot(beaver1, "Mean Beaver Body Temperatures")
+hourly_plot(beaver2, "Mean Body Temperature of Beavers Throughout a Day")
+```
+
+## Section 4: Open-ended practice
+
+Given a vector of birthdates, write a function to compute the age *in years*. Test
+to make sure it works on both character and date inputs, and on vectors of length > 1.
+
+```{r}
+
+date_to_age <- function(vec) {
+  dates <- if (is.character(vec)) mdy(vec) else vec
+  age <- 2025 - year(dates)
+  return(age)
+}
+
+date_to_age("10-25-2003") # Character vector of length 1
+date_to_age(c("10-25-1998", "10-25-1925"))  # Character vector of length >1
+date_to_age(as_date(c("10-25-1998", "10-25-1925"), format= "%m-%d-%Y"))   # Date vector of length >1
+
+
+?print
+```
+
+## Exercise 14 questions
+
+1. If you look at the help pages for some functions, you see that some of the
+arguments end with "..." (e.g., function(x, y, ...); you can look at ?print to see 
+an example). What does this achieve? 
+
+> The ... is meant to represent further arguments that could be included in the function. 
+
+2. How might the "..." be helpful in a custom function? Here is an example. What
+does "..." achieve?:
+
+```{r}
+mean_plus2 <- function(x, ...){
+  mean(x + 2, ...)
+}
+vect <- c(1, 2, 3, NA)
+mean_plus2(vect)
+mean_plus2(vect, na.rm = T)
+```
+
+> This is an example of how you can add additional arguments like na.rm to the function because you used ...
+
+3. What does this function do? What type(s) of argument(s) does it take (i.e.,
+character, numeric, object, etc.)? 
+
+```{r}
+#load_pack <- function(pack_name){
+#  pack_downloaded <- pack_name %in% installed.packages()[,"Package"]
+#  if(pack_downloaded){
+#    library(pack_name)
+ # } else{
+ #   install.packages(pack_name)
+ #   library(pack_name)
+ # }
+#}
+```
+
+> This function is checking if the pack is already installed, and if it is it is added to pack_downloaded.  If the pack is in pack_downloaded then the library function will be used on it to load it into r.  If the pack is not already downloaded then the function install.packages will be used and they will be installed, then loaded with library(). 
+
+4. Write documentation for the `load_pack` function above using the `roxygen` 
+notation from the reading (section 19.5).
+
+```{r}
+
+#'Load installed packages or install and load uninstalled packs
+#'
+#'@param pack_name The name of an R package
+#'@returns loads or installs packages into r
+#'@examples 
+#'load_pack <- function(pack_name){
+#'  pack_downloaded <- pack_name %in% installed.packages()[,"Package"]
+#' if(pack_downloaded){
+#'   library(pack_name)
+#' } else{
+#'   install.packages(pack_name)
+#'   library(pack_name)
+#}
+```
