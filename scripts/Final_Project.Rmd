@@ -1,0 +1,298 @@
+---
+title: "Data Management Final Project"
+author: "Oliver Nemeth"
+date: "2025-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, error= FALSE, warning = FALSE, message = FALSE)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(tidyverse)
+library(knitr)
+library(flextable)
+library(officer)
+library(ggplot2)
+library(kableExtra)
+library(tinytex)
+library(readxl)
+
+
+
+#read in the data
+ABS_rainfall_total_monthly <- read_csv("C:/Users/olive/OneDrive/Desktop/scrubjay/ABS_rainfall_total_monthly.csv")
+nest_data_1969_2020 <- read_excel("C:/Users/olive/OneDrive/Desktop/scrubjay/nest_data_1969_2020.xlsx")
+
+wet_terr_all <- read_csv("C:/Users/olive/OneDrive/Desktop/scrubjay/fsj/wet_terr_all.csv")
+
+
+#separate the time and date column
+ABS_rainfall_total_monthly <- ABS_rainfall_total_monthly %>%
+  separate(`#Timestamp`, into = c("Date", "Time"), sep = " ")
+
+#convert date into a date class
+ABS_rainfall_total_monthly <- ABS_rainfall_total_monthly %>%
+  mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+    
+#make a new year column
+ABS_rainfall_total_monthly <- ABS_rainfall_total_monthly %>%
+  mutate(Year = year(Date))
+
+#Filter only nest data after that year
+nest_data_2006_2025 <- nest_data_1969_2020 %>%
+  filter(NestYear >2005)
+
+#rename column to year
+ nest_data_2006_2025 <- nest_data_2006_2025 %>%
+   rename(Year = NestYear)
+ 
+ #convert nest data to numeric
+ nest_data_2006_2025 <- nest_data_2006_2025 %>%
+   mutate(Year = as.numeric(Year),
+          NestNum= as.numeric(NestNum),
+            ClutchNum= as.numeric(ClutchNum),
+            EggNum= as.numeric(EggNum),
+            HatchNum= as.numeric(HatchNum),
+            FldgNum= as.numeric(FldgNum))
+ 
+ #convert NA to 0
+ nest_data_2006_2025[is.na(nest_data_2006_2025)] <- 0
+ 
+ #group by year and summarize rainfall value
+ 
+ summary_nest <- nest_data_2006_2025 %>%
+   group_by(Year) %>%
+   summarise(
+     total_NestNum   = sum(NestNum, na.rm = TRUE),
+     total_ClutchNum = sum(ClutchNum, na.rm = TRUE),
+     total_EggNum    = sum(EggNum, na.rm = TRUE),
+     total_HatchNum  = sum(HatchNum, na.rm = TRUE),
+     total_FldgNum   = sum(FldgNum, na.rm = TRUE),
+     .groups = "drop"
+   )
+ 
+ # summarize rainfall by year
+ summary_rain <- ABS_rainfall_total_monthly %>%
+   group_by(Year)%>%
+   summarize(
+     total_rainfall= sum(Value, na.rm=TRUE)
+   )
+ #join together the two data frames
+ 
+  nest_water <- left_join(summary_nest, summary_rain, by= "Year")
+
+  
+#for and if statement 
+  
+
+  rain_cat <- c()
+  
+  for(i in summary_rain$total_rainfall){
+    if(i > 40) rain_cat <- c(rain_cat, "Wet")
+    else rain_cat <- c(rain_cat, "Dry")
+  }
+  
+  summary_rain$RainCategory <- rain_cat
+  
+ 
+  
+#make terriotry a factor
+  nest_data_2006_2025 <- nest_data_2006_2025 %>%
+    mutate(Terr = factor(Terr))
+  #then group by terriotry
+  mean_nest <- nest_data_2006_2025 %>%
+    group_by(Terr) %>%
+    summarise(mean_fledglings = mean(FldgNum, na.rm = TRUE),
+              mean_egg = mean(EggNum, na.rm=TRUE),
+              mean_hatch= mean (HatchNum, na.rm=TRUE),
+              mean_clutch= mean(ClutchNum, na.rm=TRUE),
+              mean_nest= mean(NestNum, na.rm=TRUE)) 
+#then combine with the pct wetalnd data
+  
+
+  wet_terr_all <- wet_terr_all %>%
+    filter(!is.na(TERRYR))
+  
+  wet_terr_all$wet_area_s[is.na(wet_terr_all$wet_area_s)] <- 0
+  
+  wet_terr_all$pct_wet[is.na(wet_terr_all$pct_wet)] <- 0
+  
+  
+  #remove unnecessary columns
+
+  wet_terr_all <- wet_terr_all %>% select(-c(TERR, NEAR_FID, NEAR_DIST, Longitude, Latitude, Shape_Leng, Shape_Area, YR, Year, acres))
+  
+  wet_terr_all <- wet_terr_all %>%
+    filter(YEAR!=2007)
+  
+  #make terr column
+  library(stringr)
+  wet_terr_all <- wet_terr_all %>%
+    mutate(
+      Terr = str_sub(TERRYR, 1, -3)  
+    )
+  #combine with the mean nest data
+  wet_mean_nest_terr <- left_join(wet_terr_all, mean_nest, by= "Terr")
+
+  
+  #what is cut off for wet
+
+territory_wet <- wet_mean_nest_terr %>%
+  arrange(desc(wet_area_s)) %>%
+  mutate(rank = row_number(),
+         n = n())  %>%
+  filter(rank <= n/2)
+
+
+#function for wetness
+categorize_wetness <- function(wet_area_s){
+  if(is.na(wet_area_s)) return(NA)    
+  else if(wet_area_s == 0) return("Dry")
+  else if(wet_area_s > 0) return("Wet")
+}
+
+#get soem summary stats
+wet_mean_nest_terr <- wet_mean_nest_terr %>%
+  mutate(wet_category = sapply(wet_area_s, categorize_wetness))
+
+wet <- wet_mean_nest_terr %>%
+  filter(wet_category=="Wet")
+
+dry <- wet_mean_nest_terr %>%
+  filter(wet_category=="Dry")
+nrow(wet)
+nrow(dry)
+
+terrcount <- unique(wet_mean_nest_terr$Terr)
+length(terrcount)
+nrow(ABS_rainfall_total_monthly)
+
+
+```
+## Background and Summary
+
+The impact of water on the reproduction of the terrestrial bird, the Florida Scrub Jay, has been preliminary investigated below.
+
+The rainfall data contains the amount of rainfall from 2006-2025 with `r nrow(ABS_rainfall_total_monthly)` monthly observations, while the reproduction data set contains reproductive metrics for FSJ nests from 1969-2022, and the area of wetland in each territory data covers `r length(terrcount)` territories from 2008-2019.
+
+Several crucial reproduction metrics including total number of fledglings, nests, eggs, hatches, and clutch size per territory per year (territories change every year) were collected in a data table and filtered to only years after 2005, which is when rainfall data began to be collected. The reproduction data was then joined with the rainfall data to produce a data frame showing the amount of rainfall and reproductive metrics per territory per year.
+
+Reproduction data was also combined with a data frame containing the area of water in each territory, where territories containing some portion of wetland were classified as "Wet" and territories containing no wetland classified as "Dry".There are `r nrow(wet)` territories containing wetlands and there are `r nrow(dry)` territories without wetland area.
+
+The data was then grouped and visualized in order to detect preliminary trends and inform future analyses.
+
+## Figure 1
+
+This figure shows the relationship between the rainfall per year and the mean number of fledglings, nests, eggs, and clutch size for FSJ nests. Each point represents one year (n =17). Visual trends of increased rainfall having a positive relationship with reproductive metrics can be seen. Statistical testing confirms a significant positive correlation between rainfall and mean total nests, clutch, and eggs.
+
+```{r pressure, echo = FALSE, error= FALSE, warning = FALSE, message = FALSE}
+library(patchwork)  
+
+p1 <- ggplot(nest_water, aes(x=total_FldgNum, y=total_rainfall)) +
+  geom_point() + theme_minimal() +
+  labs(x="Mean Fledglings", y="Rainfall (in)")
+
+p2 <- ggplot(nest_water, aes(x=total_NestNum, y=total_rainfall)) +
+  geom_point() + theme_minimal() +
+  labs(x="Mean Nests", y="Rainfall (in)")
+
+p3 <- ggplot(nest_water, aes(x=total_EggNum, y=total_rainfall)) +
+  geom_point() + theme_minimal() +
+  labs(x="Mean Eggs", y="Rainfall (in)")
+
+p4 <- ggplot(nest_water, aes(x=total_ClutchNum, y=total_rainfall)) +
+  geom_point() + theme_minimal() +
+  labs(x="Mean Clutch", y="Rainfall(in)")
+
+# grid
+(p1 | p2) / (p3 | p4) +
+  plot_annotation(
+    title = "Reproductive Metrics vs Inches of Rainfall per Year")
+
+ cor.test(nest_water$total_NestNum, nest_water$total_rainfall)
+  cor.test(nest_water$total_ClutchNum, nest_water$total_rainfall)
+  cor.test(nest_water$total_EggNum, nest_water$total_rainfall)
+
+```
+
+## Figure 2
+
+This figure displays the difference in mean reproductive metrics over 13 years between territories that contain some area of wetland compared to territories with no wetland area. In metrics displayed, territories that contain some wetland area have a greater mean number of fledglings, clutch size, eggs, and nests.
+
+```{r, echo = FALSE, error= FALSE, warning = FALSE, message = FALSE}
+
+
+p5 <- ggplot(wet_mean_nest_terr, aes(YEAR, mean_fledglings, fill= wet_category))+geom_col()+
+  labs(x= "Year", y="Mean Fledglings", fill= "Wetness Category") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+p6 <- ggplot(wet_mean_nest_terr, aes(YEAR, mean_clutch, fill= wet_category))+geom_col()+
+  labs(x= "Year", y="Mean Clutch", fill= "Wetness Category") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+p7 <- ggplot(wet_mean_nest_terr, aes(YEAR, mean_hatch, fill= wet_category))+geom_col()+
+  labs(x= "Year", y="Mean Hatches", fill= "Wetness Category") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+p8 <- ggplot(wet_mean_nest_terr, aes(YEAR, mean_nest, fill= wet_category))+geom_col()+
+  labs(x= "Year", y="Mean Nests", fill= "Wetness Category") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+# grid
+(p5 | p6) / (p7 | p8) +
+  plot_annotation(
+    title = "Reproductive Metrics vs Wettness Category")
+
+wet <- wet_mean_nest_terr %>%
+  filter(wet_category=="Wet")
+
+dry <- wet_mean_nest_terr %>%
+  filter(wet_category=="Dry")
+
+terrcount <- unique(wet_mean_nest_terr$Terr)
+
+
+```
+
+## Table 1
+
+After nesting the data by wetness category, mean reproductive metrics were calculated from the averages in each territory. Territories with some area of wetland show slightly increased reproductive means per territory in all metrics except Mean Eggs.
+
+```{r, error=FALSE}
+
+#nests
+nested_territory <- wet_mean_nest_terr %>%
+  group_by(wet_category) %>%
+  nest() %>%
+  mutate(
+    mean_fledglings = map_dbl(data, ~mean(.x$mean_fledglings, na.rm = TRUE)),
+    mean_nests = map_dbl(data, ~mean(.x$mean_nest, na.rm = TRUE)),
+    mean_eggs = map_dbl(data, ~mean(.x$mean_egg, na.rm = TRUE)),
+    mean_hatch = map_dbl(data, ~mean(.x$mean_hatch, na.rm = TRUE))
+  )
+
+nested_territory <- nested_territory %>%
+  rename("Wetness Category" = wet_category,
+    "Mean Fledglings" = mean_fledglings,
+    "Mean Nests" = mean_nests,
+    "Mean Eggs" = mean_eggs,
+    "Mean Hatches" = mean_hatch)
+# Create table
+table <- knitr::kable(
+  nested_territory %>% select("Mean Fledglings", "Mean Nests", "Mean Eggs", "Mean Hatches"),
+  caption = "Mean Fledglings, Nests, Eggs, and Hatch per Territory by Wetness Category"
+)
+table
+
+
+```
+
+## Key Takeaways
+
+Early exploration of the data shows trends of a positive correlation between both the amount of rainfall, and wetland area with the average number of fledglings, nests, eggs, hatches, and clutch size.
+
+Statistical testing confirmed significant correlation between the amount of rainfall and mean nests, clutch size, and eggs. Further statistical testing is needed to conclude the relationship between reproductive metrics and the area of wetland in each territory.
+
+Having the data sets cleaned and combined allows for future statistical testing and modeling to further investigate the relationship of FSJ reproduction with water. The current data visualization helps point research in the right direction and confirms initial suspicions of the potential positive effect of water on FSJ reproduction and gives encouragement for further exploration.
